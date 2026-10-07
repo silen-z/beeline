@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Benchmarks;
+namespace SilenZ\Beeline\Benchmarks;
 
 use FastRoute\Dispatcher;
 use PhpBench\Attributes\BeforeMethods;

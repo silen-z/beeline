@@ -11,7 +11,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "SilenZ\\Beeline\\Tests\\": "tests/"
+            "SilenZ\\Beeline\\Tests\\": "tests/",
+            "SilenZ\\Beeline\\Benchmarks\\": "benchmarks/"
         }
     },
     "authors": [
@@ -24,10 +25,19 @@
         "php": ">=8.4"
     },
     "require-dev": {
-        "phpunit/phpunit": "^13.3"
+        "phpunit/phpunit": "^13.3",
+        "phpbench/phpbench": "^1.7",
+        "nikic/fast-route": "^1.3"
     },
     "scripts": {
         "test": "phpunit",
-        "coverage": "phpunit --coverage-html var/coverage --coverage-text"
+        "coverage": "phpunit --coverage-html var/coverage --coverage-text",
+        "bench": "phpbench run --report=aggregate",
+        "qa": [
+            "mago format --check",
+            "mago lint",
+            "mago analyze",
+            "@test"
+        ]
     }
 }

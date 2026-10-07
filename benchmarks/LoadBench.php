@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Benchmarks;
+namespace SilenZ\Beeline\Benchmarks;
 
 use FastRoute\RouteCollector as FastRouteCollector;
 use PhpBench\Attributes\BeforeMethods;

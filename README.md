@@ -172,9 +172,32 @@ Router wires these together: on a cache miss it declares, compiles and stores th
 
 ## Development
 
+There's no PHP on the host by assumption — use the Docker setup in `docker/`:
+
 ```bash
-composer test
+docker compose up -d
+docker compose exec php composer install
+docker compose exec php composer qa
 ```
 
-Standalone package tests. For QA tooling, benchmarks and runnable examples exercising this package
-alongside Switchyard, see the sibling `segmatch` repo.
+`composer qa` runs `mago format --check`, `mago lint`, `mago analyze` and then the tests
+(`composer test`). If Docker isn't available, any PHP ≥8.4 CLI binary works the same way.
+
+```bash
+composer bench
+```
+
+The benchmarks (PHPBench) compare this router with FastRoute in five groups:
+
+- `match`: steady-state lookups, one benchmark per interesting case
+- `match-mixed`: steady-state lookups cycling through every route of a fixture plus 404s
+- `load-match`: loading the cache file and matching one path, as on a cold PHP-FPM request
+- `load`: turning an existing cache file into a matcher
+- `compile`: building from declarations
+
+Run one group with `vendor/bin/phpbench run --group=match --report=aggregate`. The fixtures are in
+`benchmarks/fixtures/`, and `tests/BenchmarkFixturesTest.php` checks that both routers return the
+same result for every benchmark request.
+
+On Windows, `phpbench.json` sets `runner.remote_script_path` to a relative directory. Without it,
+PHPBench fails when the temp directory path contains non-ASCII characters.
