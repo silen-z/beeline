@@ -9,11 +9,17 @@ use SilenZ\Segmatch\Cache\RouteCache;
 /**
  * Entry point: declares the routes lazily, caches them and matches paths.
  *
- * Like FastRoute's cached dispatcher, {@see RouteTable::definitions()} only runs when the cache has no
+ * Like FastRoute's cached dispatcher, compiling the matching structure only runs when the cache has no
  * entry for {@see RouteTable::cacheKey()}. Nothing is invalidated automatically, so anything that
  * changes which routes get compiled (a deploy, configuration deciding which routes exist) must change
  * what `cacheKey()` returns, e.g. by putting an application version or a configuration hash into it.
  * A `cacheKey()` of `null`, or no `$cache` at all, compiles on every request instead.
+ *
+ * A table with a {@see MetadataRegistry} ({@see RouteTable::registry()}) is the exception:
+ * {@see RouteTable::definitions()} still runs every request regardless of the compiled cache, since
+ * the registry — never itself cached — needs declaring to repopulate it. A table without one
+ * (e.g. one built from {@see Http\LazyRoutes}) has nothing to repopulate, so it keeps the cache-gated
+ * behavior above exactly.
  *
  * @psalm-import-type CompiledRoutes from Compiler
  */
@@ -71,7 +77,7 @@ final class Router
      */
     private function matcher(): Matcher
     {
-        return $this->matcher ??= new Matcher($this->load());
+        return $this->matcher ??= new Matcher($this->load(), $this->routes->registry());
     }
 
     /**

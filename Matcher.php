@@ -6,6 +6,7 @@ namespace SilenZ\Segmatch;
 
 use InvalidArgumentException;
 
+use function array_keys;
 use function array_slice;
 use function count;
 use function explode;
@@ -72,9 +73,15 @@ final readonly class Matcher
 
     /**
      * @param CompiledRoutes $compiled output of {@see Compiler::compile()}
+     * @param ?MetadataRegistry $registry when given, every route's own metadata and the table's own
+     *     are resolved through it instead of used as compiled — see {@see resolve()} and
+     *     {@see metadata()}. `null` for a table that never needed one, e.g. one built from
+     *     {@see Http\LazyRoutes}, whose compiled metadata already is the real thing.
      */
-    public function __construct(array $compiled)
-    {
+    public function __construct(
+        array $compiled,
+        private ?MetadataRegistry $registry = null,
+    ) {
         if ($compiled['version'] !== Compiler::FORMAT_VERSION) {
             throw new InvalidArgumentException(sprintf(
                 'Compiled routes have format version %d, expected %d; recompile them.',
@@ -96,11 +103,12 @@ final readonly class Matcher
     /**
      * The metadata of the route table as a whole, as {@see RouteTable::metadata()} gave it when the
      * routes were compiled — from the cache like everything else, so without declaring the routes
-     * again. Never returned by matching: it belongs to no route.
+     * again, unless resolved through {@see $registry} instead. Never returned by matching: it belongs
+     * to no route.
      */
     public function metadata(): mixed
     {
-        return $this->metadata;
+        return $this->resolve($this->metadata);
     }
 
     /**
@@ -111,7 +119,28 @@ final readonly class Matcher
      */
     public function routeMetadata(): array
     {
-        return $this->routeMetadata;
+        $resolved = [];
+        foreach (array_keys($this->routeMetadata) as $id) {
+            $resolved[] = $this->resolve($this->routeMetadata[$id]);
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * `$idOrMetadata` resolved through {@see $registry} when there is one: {@see Http\Route}/{@see
+     * Http\Routes} hand it a {@see MetadataRegistry} id instead of the metadata itself — whether a
+     * route's own or the table's — exactly because it might hold a real instance the compiled cache
+     * could never carry. Without a registry, whatever's compiled in already is the real metadata.
+     */
+    private function resolve(mixed $idOrMetadata): mixed
+    {
+        if ($this->registry === null) {
+            return $idOrMetadata;
+        }
+
+        /** @var int $idOrMetadata */
+        return $this->registry->get($idOrMetadata);
     }
 
     /**
@@ -140,7 +169,7 @@ final readonly class Matcher
         $static = $this->static[$path] ?? self::NONE;
         if ($static !== self::NONE) {
             if ($filter === null) {
-                return new RouteMatch($this->routeMetadata[is_int($static) ? $static : $static[0]], []);
+                return new RouteMatch($this->resolve($this->routeMetadata[is_int($static) ? $static : $static[0]]), []);
             }
 
             $match = $this->select(is_int($static) ? [$static] : $static, [], $filter, $rejected);
@@ -330,7 +359,7 @@ final readonly class Matcher
             $params[$name] = rawurldecode($values[$position]);
         }
 
-        return new RouteMatch($this->routeMetadata[$routeId], $params);
+        return new RouteMatch($this->resolve($this->routeMetadata[$routeId]), $params);
     }
 
     /**
