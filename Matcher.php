@@ -183,6 +183,11 @@ final readonly class Matcher
         $stage = self::ENTER;
 
         while (true) {
+            // $stage isn't always ENTER here: the backtrack restore near the bottom of this loop can
+            // set it to STATIC, PARAM or CATCH instead, reaching this same check on the next pass.
+            // mago's flow analysis doesn't see that path, so it narrows $stage to ENTER unconditionally.
+            // @mago-expect analysis:redundant-comparison
+            // @mago-expect analysis:redundant-condition
             if ($stage === self::ENTER) {
                 $stage = self::STATIC;
                 if ($index === $count) {
