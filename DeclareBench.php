@@ -54,8 +54,7 @@ final class DeclareBench
     {
         $routes = new Routes();
         foreach (Fixtures::get($fixture)['routes'] as $route) {
-            // The path doubles as the handler: an integer would be rejected, as it reads as an
-            // InstanceRegistry id.
+            // The path doubles as the handler: an integer would be rejected outright, never a valid one.
             $routes->get($route, $route);
         }
 
