@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch;
+namespace SilenZ\Beeline;
 
-use SilenZ\Segmatch\Cache\RouteCache;
+use SilenZ\Beeline\Cache\RouteCache;
 
 /**
  * Entry point: declares the routes lazily, caches them and matches paths.

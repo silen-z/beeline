@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch;
+namespace SilenZ\Beeline;
 
-use SilenZ\Segmatch\Exception\InvalidRouteException;
-use SilenZ\Segmatch\Internal\Segment;
-use SilenZ\Segmatch\Internal\SegmentType;
+use SilenZ\Beeline\Exception\InvalidRouteException;
+use SilenZ\Beeline\Internal\Segment;
+use SilenZ\Beeline\Internal\SegmentType;
 
 use function array_key_last;
 use function explode;

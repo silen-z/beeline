@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Exception;
+namespace SilenZ\Beeline\Exception;
 
 use InvalidArgumentException;
 

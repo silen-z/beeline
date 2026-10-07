@@ -1,0 +1,33 @@
+{
+    "name": "silenz/beeline",
+    "description": "Segment-tree PHP router compiled into a flat, cacheable node table.",
+    "type": "library",
+    "version": "0.1.0",
+    "license": "proprietary",
+    "autoload": {
+        "psr-4": {
+            "SilenZ\\Beeline\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SilenZ\\Beeline\\Tests\\": "tests/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Pavel Hrách",
+            "email": "pavel@hrach.email"
+        }
+    ],
+    "require": {
+        "php": ">=8.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.3"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "coverage": "phpunit --coverage-html var/coverage --coverage-text"
+    }
+}

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Tests\Fixtures;
+namespace SilenZ\Beeline\Tests\Fixtures;
 
 enum Method: string
 {

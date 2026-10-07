@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch;
+namespace SilenZ\Beeline;
 
 /**
  * Result of a {@see Matcher::match()} that found no acceptable route.

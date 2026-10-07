@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Internal;
+namespace SilenZ\Beeline\Internal;
 
-use SilenZ\Segmatch\Compiler;
-use SilenZ\Segmatch\RouteDefinition;
+use SilenZ\Beeline\Compiler;
+use SilenZ\Beeline\RouteDefinition;
 
 use function count;
 use function spl_object_id;
@@ -28,7 +28,7 @@ final class Flattener
      * @param BuildNode $root the tree, with the routes without parameters already moved out into $static
      * @param list<RouteDefinition> $routes
      * @param array<array-key, non-empty-list<int>> $static full path => route ids, in declaration order
-     * @param mixed $metadata the table's own metadata, {@see \SilenZ\Segmatch\RouteTable::metadata()}
+     * @param mixed $metadata the table's own metadata, {@see \SilenZ\Beeline\RouteTable::metadata()}
      *
      * @return CompiledRoutes
      */

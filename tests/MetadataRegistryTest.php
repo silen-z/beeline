@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Tests;
+namespace SilenZ\Beeline\Tests;
 
 use PHPUnit\Framework\TestCase;
-use SilenZ\Segmatch\MetadataRegistry;
+use SilenZ\Beeline\MetadataRegistry;
 use stdClass;
 
 final class MetadataRegistryTest extends TestCase

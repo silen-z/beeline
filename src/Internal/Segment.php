@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Internal;
+namespace SilenZ\Beeline\Internal;
 
 /**
  * @internal

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch;
+namespace SilenZ\Beeline;
 
 /**
  * A named parameter in a route's path, in the order it appears ({@see RouteDefinition::$parameters}).

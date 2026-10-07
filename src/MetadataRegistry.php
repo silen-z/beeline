@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch;
+namespace SilenZ\Beeline;
 
 use function count;
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch;
+namespace SilenZ\Beeline;
 
 /**
  * A route {@see Matcher::match()} accepted (or, inside a filter or {@see NoMatch::$rejected}, is

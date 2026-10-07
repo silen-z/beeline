@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Tests;
+namespace SilenZ\Beeline\Tests;
 
 use LogicException;
 use PHPUnit\Framework\TestCase;
-use SilenZ\Segmatch\Cache\FileCache;
-use SilenZ\Segmatch\Compiler;
-use SilenZ\Segmatch\RouteDefinition;
-use SilenZ\Segmatch\RouteMatch;
-use SilenZ\Segmatch\Router;
-use SilenZ\Segmatch\RouteTable;
-use SilenZ\Segmatch\Tests\Fixtures\Method;
+use SilenZ\Beeline\Cache\FileCache;
+use SilenZ\Beeline\Compiler;
+use SilenZ\Beeline\RouteDefinition;
+use SilenZ\Beeline\RouteMatch;
+use SilenZ\Beeline\Router;
+use SilenZ\Beeline\RouteTable;
+use SilenZ\Beeline\Tests\Fixtures\Method;
 
 use function basename;
 use function dirname;

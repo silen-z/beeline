@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Cache;
+namespace SilenZ\Beeline\Cache;
 
 use RuntimeException;
-use SilenZ\Segmatch\Compiler;
+use SilenZ\Beeline\Compiler;
 use UnitEnum;
 
 use function array_is_list;

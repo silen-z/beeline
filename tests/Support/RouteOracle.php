@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Tests\Support;
+namespace SilenZ\Beeline\Tests\Support;
 
 use Closure;
 

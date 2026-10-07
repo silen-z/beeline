@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Tests;
+namespace SilenZ\Beeline\Tests;
 
 use Closure;
 use PHPUnit\Framework\TestCase;
-use SilenZ\Segmatch\Compiler;
-use SilenZ\Segmatch\Matcher;
-use SilenZ\Segmatch\NoMatch;
-use SilenZ\Segmatch\RouteDefinition;
-use SilenZ\Segmatch\RouteMatch;
-use SilenZ\Segmatch\RouteTable;
+use SilenZ\Beeline\Compiler;
+use SilenZ\Beeline\Matcher;
+use SilenZ\Beeline\NoMatch;
+use SilenZ\Beeline\RouteDefinition;
+use SilenZ\Beeline\RouteMatch;
+use SilenZ\Beeline\RouteTable;
 
 use function array_key_exists;
 use function array_map;

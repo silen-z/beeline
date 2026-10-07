@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Tests;
+namespace SilenZ\Beeline\Tests;
 
 use ArrayObject;
 use PHPUnit\Framework\TestCase;
-use SilenZ\Segmatch\Cache\RouteCache;
-use SilenZ\Segmatch\Compiler;
-use SilenZ\Segmatch\NoMatch;
-use SilenZ\Segmatch\RouteDefinition;
-use SilenZ\Segmatch\RouteMatch;
-use SilenZ\Segmatch\Router;
-use SilenZ\Segmatch\RouteTable;
+use SilenZ\Beeline\Cache\RouteCache;
+use SilenZ\Beeline\Compiler;
+use SilenZ\Beeline\NoMatch;
+use SilenZ\Beeline\RouteDefinition;
+use SilenZ\Beeline\RouteMatch;
+use SilenZ\Beeline\Router;
+use SilenZ\Beeline\RouteTable;
 
 final class RouterTest extends TestCase
 {

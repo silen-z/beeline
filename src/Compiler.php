@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch;
+namespace SilenZ\Beeline;
 
-use SilenZ\Segmatch\Exception\InvalidRouteException;
-use SilenZ\Segmatch\Internal\BuildNode;
-use SilenZ\Segmatch\Internal\Flattener;
-use SilenZ\Segmatch\Internal\Segment;
-use SilenZ\Segmatch\Internal\SegmentType;
+use SilenZ\Beeline\Exception\InvalidRouteException;
+use SilenZ\Beeline\Internal\BuildNode;
+use SilenZ\Beeline\Internal\Flattener;
+use SilenZ\Beeline\Internal\Segment;
+use SilenZ\Beeline\Internal\SegmentType;
 use UnitEnum;
 
 use function array_all;
