@@ -92,7 +92,6 @@ final class Compiler
         // Checked anyway: the definitions' type is only documented, and a closure may return anything.
         /** @var iterable<mixed> $definitions */
         $definitions = $table->definitions();
-        // @mago-expect analysis:mixed-assignment
         foreach ($definitions as $route) {
             if (!$route instanceof RouteDefinition) {
                 throw new InvalidRouteException(sprintf(
@@ -106,7 +105,6 @@ final class Compiler
             $routes[] = $route;
         }
 
-        // @mago-expect analysis:mixed-assignment
         $metadata = $table->metadata();
         self::assertExportable($metadata, 'the route table');
 
@@ -137,7 +135,6 @@ final class Compiler
         }
 
         // Metadata is arbitrary user data, so its items are mixed by definition.
-        // @mago-expect analysis:mixed-assignment
         foreach ($value as $item) {
             self::assertExportable($item, $owner);
         }

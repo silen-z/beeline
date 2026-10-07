@@ -164,7 +164,6 @@ final class FileCache implements RouteCache
 
             $lines[] = '    ' . var_export($name, return: true) . ' => [';
             $list = array_is_list($table);
-            // @mago-expect analysis:mixed-assignment
             foreach ($table as $key => $value) {
                 $prefix = $list ? '/* ' . $key . ' */ ' : var_export($key, return: true) . ' => ';
                 $lines[] = '        ' . $prefix . self::inline($value) . ',';
@@ -186,7 +185,6 @@ final class FileCache implements RouteCache
 
         $list = array_is_list($value);
         $items = [];
-        // @mago-expect analysis:mixed-assignment
         foreach ($value as $key => $item) {
             $items[] = ($list ? '' : var_export($key, return: true) . ' => ') . self::inline($item);
         }

@@ -21,3 +21,6 @@ halstead = { exclude = ["src/Matcher.php", "tests/**", "benchmarks/**"] }
 too-many-methods = { exclude = ["tests/**", "benchmarks/**"] }
 
 no-else-clause = { enabled = false }
+
+[analyzer]
+ignore = ["mixed-assignment"]
