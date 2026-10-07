@@ -211,7 +211,7 @@ final class RouterTest extends TestCase
         static::assertSame('/users/{id}', $definitions[1]->path);
     }
 
-    public function testDefinitionsCallsTheRoutesCallableEveryTime(): void
+    public function testDefinitionsCallsTheRoutesCallableOnlyOnce(): void
     {
         $calls = new ArrayObject();
         $router = new Router(self::table(static function () use ($calls): array {
@@ -223,7 +223,7 @@ final class RouterTest extends TestCase
         $router->table()->definitions();
         $router->table()->definitions();
 
-        static::assertCount(2, $calls);
+        static::assertCount(1, $calls);
     }
 
     public function testDefinitionsIgnoresTheCache(): void
