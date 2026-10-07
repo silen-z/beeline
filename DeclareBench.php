@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Benchmarks;
+namespace SilenZ\Benchmarks;
 
 use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\ParamProviders;
 use PhpBench\Attributes\Revs;
 use PhpBench\Attributes\Warmup;
-use SilenZ\Segmatch\Compiler;
-use SilenZ\Segmatch\Http\Routes;
+use SilenZ\Beeline\Compiler;
+use SilenZ\Switchyard\Routes;
 
 /**
  * Declaring routes through Http\Routes: building the Route/Routes object graph (benchFlat), and that

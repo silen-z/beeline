@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Benchmarks;
+namespace SilenZ\Benchmarks;
 
 use function array_key_exists;
 use function crc32;

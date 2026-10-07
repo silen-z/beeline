@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Benchmarks;
+namespace SilenZ\Benchmarks;
 
 use FastRoute\Dispatcher;
 use FastRoute\RouteCollector as FastRouteCollector;
 use LogicException;
-use SilenZ\Segmatch\Cache\FileCache;
-use SilenZ\Segmatch\Compiler;
-use SilenZ\Segmatch\Matcher;
-use SilenZ\Segmatch\RouteDefinition;
-use SilenZ\Segmatch\Router;
-use SilenZ\Segmatch\RouteTable;
+use SilenZ\Beeline\Cache\FileCache;
+use SilenZ\Beeline\Compiler;
+use SilenZ\Beeline\Matcher;
+use SilenZ\Beeline\RouteDefinition;
+use SilenZ\Beeline\Router;
+use SilenZ\Beeline\RouteTable;
 
 use function FastRoute\cachedDispatcher;
 use function FastRoute\simpleDispatcher;

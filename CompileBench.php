@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace SilenZ\Segmatch\Benchmarks;
+namespace SilenZ\Benchmarks;
 
 use PhpBench\Attributes\Groups;
 use PhpBench\Attributes\Iterations;
