@@ -7,11 +7,11 @@ namespace SilenZ\Beeline\Tests;
 use FastRoute\Dispatcher;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use SilenZ\Beeline\Benchmarks\Fixtures;
+use SilenZ\Beeline\Benchmarks\Routers;
 use SilenZ\Beeline\Matcher;
 use SilenZ\Beeline\NoMatch;
 use SilenZ\Beeline\RouteMatch;
-use SilenZ\Beeline\Benchmarks\Fixtures;
-use SilenZ\Beeline\Benchmarks\Routers;
 
 use function array_filter;
 use function array_key_exists;
