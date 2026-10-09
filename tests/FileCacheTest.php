@@ -76,6 +76,16 @@ final class FileCacheTest extends TestCase
         static::assertNull(new FileCache($this->directory)->get('routes'));
     }
 
+    public function testANullKeyIsStoredAndReadBackUnchanged(): void
+    {
+        $compiled = Compiler::compile(new RouteTable([new RouteDefinition('/a', 'a')]));
+
+        $cache = new FileCache($this->directory);
+        $cache->set(null, $compiled);
+
+        static::assertSame($compiled, $cache->get(null));
+    }
+
     public function testFileThatDoesNotReturnAnArrayIsIgnored(): void
     {
         $cache = new FileCache($this->directory);
@@ -85,26 +95,34 @@ final class FileCacheTest extends TestCase
         static::assertNull($cache->get('routes'));
     }
 
-    public function testEachKeyHasItsOwnReadableFile(): void
+    public function testEachKeyHasItsOwnFile(): void
     {
         $cache = new FileCache($this->directory . '/');
 
-        static::assertSame('routes-v2.php', basename($cache->file('routes-v2')));
+        static::assertMatchesRegularExpression('/^routecache_[0-9a-f]{8}\.php$/', basename($cache->file('routes-v2')));
         static::assertSame($this->directory, dirname($cache->file('routes-v2')));
         static::assertNotSame($cache->file('routes-v1'), $cache->file('routes-v2'));
     }
 
-    public function testKeysWithUnsafeCharactersDoNotCollide(): void
+    public function testKeysWithAnyCharactersDoNotCollide(): void
     {
         $cache = new FileCache($this->directory);
 
         static::assertMatchesRegularExpression(
-            '/^tenant_a_routes~[0-9a-f]{8}\.php$/',
+            '/^routecache_[0-9a-f]{8}\.php$/',
             basename($cache->file('tenant/a:routes')),
         );
         static::assertNotSame($cache->file('tenant/a:routes'), $cache->file('tenant:a/routes'));
-        static::assertNotSame($cache->file('tenant_a_routes'), $cache->file('tenant/a:routes'));
-        static::assertMatchesRegularExpression('/^~[0-9a-f]{8}\.php$/', basename($cache->file('')));
+        static::assertNotSame($cache->file(''), $cache->file('tenant/a:routes'));
+    }
+
+    public function testANullKeyUsesItsOwnSharedFileSeparateFromAnyStringKey(): void
+    {
+        $cache = new FileCache($this->directory);
+
+        static::assertSame('routecache.php', basename($cache->file(null)));
+        static::assertNotSame($cache->file(null), $cache->file(''));
+        static::assertSame($cache->file(null), $cache->file(null));
     }
 
     public function testRouterUsesTheFileCache(): void

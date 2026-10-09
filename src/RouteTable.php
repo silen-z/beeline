@@ -47,9 +47,10 @@ final class RouteTable
      *     method name) is only called the first time they're needed — see {@see definitions()}. Give
      *     a generator as a callable producing it, since one can only be iterated once; this materializes
      *     it into an array the first time, so later calls can still read it.
-     * @param ?string $cacheKey identifies these routes in the cache, or `null` (the default) to never
-     *     cache them — compiling on every request instead, e.g. in development, regardless of whether
-     *     `Router` was given a cache. A plain value, since it's read on every request
+     * @param ?string $cacheKey identifies these routes in the cache; `null` (the default) still caches,
+     *     under whatever the given `RouteCache` treats as its own default for a `null` key — only
+     *     `Router` being given no cache at all compiles on every request instead, e.g. in development.
+     *     A plain value, since it's read on every request
      * @param mixed $metadata metadata of these routes as a whole rather than of any one route, e.g.
      *     what applies to every request whether a route matches or not: plain data like a route's own,
      *     cached with the routes, or a closure producing it, called like the definitions' only the

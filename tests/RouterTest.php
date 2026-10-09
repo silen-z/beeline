@@ -25,14 +25,14 @@ final class RouterTest extends TestCase
             /** @var array<string, array<array-key, mixed>> */
             public array $entries = [];
 
-            public function get(string $key): ?array
+            public function get(?string $key): ?array
             {
-                return $this->entries[$key] ?? null;
+                return $this->entries[$key ?? ''] ?? null;
             }
 
-            public function set(string $key, array $compiled): void
+            public function set(?string $key, array $compiled): void
             {
-                $this->entries[$key] = $compiled;
+                $this->entries[$key ?? ''] = $compiled;
             }
         };
     }
@@ -152,7 +152,7 @@ final class RouterTest extends TestCase
         static::assertSame('v2', self::route($v2->match('/a')));
     }
 
-    public function testANullKeyNeverCachesEvenWithACacheConfigured(): void
+    public function testANullKeyStillCachesWhenACacheIsConfigured(): void
     {
         $cache = self::memoryCache();
         $calls = new ArrayObject();
@@ -165,7 +165,7 @@ final class RouterTest extends TestCase
         new Router(self::table($define), $cache)->match('/a');
         new Router(self::table($define), $cache)->match('/a');
 
-        static::assertCount(2, $calls);
+        static::assertCount(1, $calls);
     }
 
     public function testEntryFromAnIncompatibleVersionIsRecompiled(): void

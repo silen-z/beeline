@@ -13,7 +13,9 @@ use SilenZ\Beeline\Cache\RouteCache;
  * entry for {@see RouteTable::cacheKey()}. Nothing is invalidated automatically, so anything that
  * changes which routes get compiled (a deploy, configuration deciding which routes exist) must change
  * what `cacheKey()` returns, e.g. by putting an application version or a configuration hash into it.
- * A `cacheKey()` of `null`, or no `$cache` at all, compiles on every request instead.
+ * A `cacheKey()` of `null` still caches, under whatever the given `$cache` treats as its default for
+ * `null` (e.g. {@see Cache\FileCache} uses one shared file); only no `$cache` at all compiles on every
+ * request instead.
  *
  * A table with a {@see MetadataRegistry} ({@see RouteTable::registry()}) is the exception:
  * {@see RouteTable::definitions()} still runs every request regardless of the compiled cache, since
@@ -85,10 +87,11 @@ final class Router
      */
     private function load(): array
     {
-        $key = $this->routes->cacheKey();
-        if ($this->cache === null || $key === null) {
+        if ($this->cache === null) {
             return Compiler::compile($this->routes);
         }
+
+        $key = $this->routes->cacheKey();
 
         $cached = $this->cache->get($key);
         if ($cached !== null && ($cached['version'] ?? null) === Compiler::FORMAT_VERSION) {

@@ -19,13 +19,10 @@ use function is_dir;
 use function is_file;
 use function mkdir;
 use function opcache_invalidate;
-use function preg_replace;
 use function random_bytes;
 use function rename;
 use function rtrim;
 use function sprintf;
-use function strlen;
-use function strspn;
 use function unlink;
 use function var_export;
 
@@ -33,9 +30,9 @@ use function var_export;
  * Stores compiled routes as PHP files that are loaded with a plain `require`, and therefore served
  * from OPcache in production.
  *
- * Each key maps to its own file in the directory: a key made of `A-Z a-z 0-9 . _ -` is used as the
- * file name directly. Any other key is made safe and gets a short hash after a `~`, which cannot
- * appear in a safe key, so no two keys ever share a file.
+ * Each key maps to its own file in the directory: `routecache_{hash of the key}.php`, or plain
+ * `routecache.php` for a `null` key — a {@see \SilenZ\Beeline\RouteTable} declared without one, which
+ * still caches rather than being treated as uncacheable, just under this one shared default file.
  *
  * A file returns the compiled structure unchanged, one line per table entry with a short comment
  * above each table, so it stays small and still readable.
@@ -44,8 +41,6 @@ use function var_export;
  */
 final class FileCache implements RouteCache
 {
-    private const string SAFE_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-';
-
     /** The tables of the compiled routes, in file order, each with the comment written above it. */
     private const array TABLES = [
         'static' => 'full path => route id(s), for routes without parameters',
@@ -62,12 +57,15 @@ final class FileCache implements RouteCache
     /** @var array<string, string> key => file, so long-running processes build each name once */
     private array $files = [];
 
+    /** The `null`-key file, kept apart from {@see $files} so it can never collide with a real key. */
+    private ?string $defaultFile = null;
+
     public function __construct(string $directory)
     {
         $this->directory = rtrim($directory, characters: '/\\');
     }
 
-    public function get(string $key): ?array
+    public function get(?string $key): ?array
     {
         $file = $this->file($key);
         if (!is_file($file)) {
@@ -83,7 +81,7 @@ final class FileCache implements RouteCache
     /**
      * Writes atomically (temporary file + rename), so concurrent requests never `require` a partial file.
      */
-    public function set(string $key, array $compiled): void
+    public function set(?string $key, array $compiled): void
     {
         $directory = $this->directory;
         // @mago-expect lint:no-error-control-operator - the failure is handled below; we don't need the warning text
@@ -115,23 +113,16 @@ final class FileCache implements RouteCache
     }
 
     /**
-     * The file a key is stored in, e.g. "routes-v2" => "<directory>/routes-v2.php" and
-     * "tenant/a" => "<directory>/tenant_a~48da3de1.php".
+     * The file a key is stored in, e.g. "routes-v2" => "<directory>/routecache_1b3c9a44.php", or, for
+     * `null`, the one shared "<directory>/routecache.php".
      */
-    public function file(string $key): string
+    public function file(?string $key): string
     {
-        return $this->files[$key] ??= $this->directory . '/' . self::fileName($key) . '.php';
-    }
-
-    private static function fileName(string $key): string
-    {
-        if ($key !== '' && strspn($key, self::SAFE_CHARACTERS) === strlen($key)) {
-            return $key;
+        if ($key === null) {
+            return $this->defaultFile ??= $this->directory . '/routecache.php';
         }
 
-        $readable = (string) preg_replace('/[^A-Za-z0-9._-]+/', replacement: '_', subject: $key);
-
-        return $readable . '~' . hash('xxh32', $key);
+        return $this->files[$key] ??= $this->directory . '/routecache_' . hash('xxh32', $key) . '.php';
     }
 
     /**
