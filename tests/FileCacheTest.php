@@ -31,10 +31,15 @@ final class FileCacheTest extends TestCase
      */
     private static function table(array $definitions, mixed $metadata = null): RouteTable
     {
-        return new RouteTable(static function (array &$d, mixed &$m) use ($definitions, $metadata): void {
+        /**
+         * @param array<array-key, mixed> &$d
+         */
+        $collect = static function (array &$d, mixed &$m) use ($definitions, $metadata): void {
             $d = $definitions;
             $m = $metadata;
-        });
+        };
+
+        return new RouteTable($collect);
     }
 
     private string $directory;
@@ -144,12 +149,9 @@ final class FileCacheTest extends TestCase
         }, 'app');
         new Router($first, $cache)->match('/a');
 
-        $router = new Router(
-            new RouteTable(static function (): never {
-                throw new LogicException('should not compile');
-            }, 'app'),
-            $cache,
-        );
+        $router = new Router(new RouteTable(static function (): never {
+            throw new LogicException('should not compile');
+        }, 'app'), $cache);
 
         $result = $router->match('/a');
 

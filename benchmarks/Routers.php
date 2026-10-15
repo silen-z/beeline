@@ -88,14 +88,12 @@ final class Routers
         $routes = Fixtures::get($fixture)['routes'];
         $fastRouteFile = self::CACHE_DIRECTORY . '/' . $fixture . '.fast-route.php';
 
-        new FileCache(self::CACHE_DIRECTORY)->set(
-            $fixture,
-            Compiler::compile(self::table(self::flatRoutes($routes))),
-        );
+        new FileCache(self::CACHE_DIRECTORY)->set($fixture, Compiler::compile(self::table(self::flatRoutes($routes))));
 
-        file_put_contents(self::symfonyFile($fixture), new CompiledUrlMatcherDumper(
-            self::symfonyCollection($routes),
-        )->dump());
+        file_put_contents(
+            self::symfonyFile($fixture),
+            new CompiledUrlMatcherDumper(self::symfonyCollection($routes))->dump(),
+        );
 
         // FastRoute only writes its cache when the file does not exist yet.
         if (is_file($fastRouteFile)) {
@@ -112,12 +110,9 @@ final class Routers
      */
     public static function cachedFlat(string $fixture): Router
     {
-        return new Router(
-            new RouteTable(static function (): never {
-                throw new LogicException('Cache entry missing.');
-            }, $fixture),
-            new FileCache(self::CACHE_DIRECTORY),
-        );
+        return new Router(new RouteTable(static function (): never {
+            throw new LogicException('Cache entry missing.');
+        }, $fixture), new FileCache(self::CACHE_DIRECTORY));
     }
 
     /**
@@ -175,7 +170,11 @@ final class Routers
     {
         $collection = new RouteCollection();
         foreach (self::ordered($routes) as $index => $route) {
-            $symfony = new SymfonyRoute((string) preg_replace('#\{(\w+)[*+]\}$#', '{$1}', $route), methods: ['GET']);
+            $symfony = new SymfonyRoute(
+                (string) preg_replace('#\{(\w+)[*+]\}$#', replacement: '{$1}', subject: $route),
+                methods: ['GET'],
+            );
+            $m = [];
             if (preg_match('#\{(\w+)([*+])\}$#', $route, $m) === 1) {
                 $symfony->setRequirement($m[1], $m[2] === '+' ? '.+' : '.*');
             }

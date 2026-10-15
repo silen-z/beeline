@@ -23,6 +23,7 @@ final class RouteTableTest extends TestCase
         $metadata = null;
         $table->collect($definitions, $metadata);
 
+        /** @var list<RouteDefinition> $definitions */
         static::assertCount(1, $definitions);
         static::assertSame('/a', $definitions[0]->path);
         static::assertSame(['middleware' => ['cors']], $metadata);
@@ -42,6 +43,8 @@ final class RouteTableTest extends TestCase
         $definitions = [];
         $metadata = null;
         $table->collect($definitions, $metadata);
+
+        /** @var list<RouteDefinition> $definitions */
         $table->collect($definitions, $metadata);
 
         static::assertCount(2, $calls);

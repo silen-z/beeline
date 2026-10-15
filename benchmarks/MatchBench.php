@@ -70,6 +70,8 @@ final class MatchBench
         try {
             $this->symfony->match($params['path']);
         } catch (ResourceNotFoundException) {
+            // @mago-expect lint:no-empty-catch-clause - a non-matching path is an expected 404
+            // outcome for this benchmark, not an error worth logging.
         }
     }
 

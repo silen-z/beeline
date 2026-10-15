@@ -44,7 +44,7 @@ final class BenchmarkFixturesTest extends TestCase
     }
 
     /**
-     * @return ?array<string, string>
+     * @return ?array<array-key, mixed>
      */
     private static function symfonyMatch(CompiledUrlMatcher $symfony, string $path): ?array
     {
@@ -83,7 +83,11 @@ final class BenchmarkFixturesTest extends TestCase
         static::assertSame(Dispatcher::FOUND, $fastRoute[0], 'FastRoute found no match');
         static::assertNotNull($symfony, 'Symfony found no match');
         static::assertSame($fastRoute[1], $flat->route);
-        static::assertSame('r' . $flat->route, $symfony['_route']);
+        // $flat->route is the route's metadata, declared mixed by RouteMatch; these fixtures always
+        // give it the int index Routers::flatRoutes() registered.
+        /** @var int $route */
+        $route = $flat->route;
+        static::assertSame('r' . $route, $symfony['_route']);
         // FastRoute omits an optional catch-all that matched nothing; this router reports ''.
         static::assertSame($fastRoute[2], array_filter($flat->params, static fn(string $v): bool => $v !== ''));
         static::assertSame(
@@ -118,7 +122,11 @@ final class BenchmarkFixturesTest extends TestCase
         static::assertSame(Dispatcher::FOUND, $fastRoute[0], 'FastRoute found no match');
         static::assertNotNull($symfony, 'Symfony found no match');
         static::assertSame($fastRoute[1], $flat->route);
-        static::assertSame('r' . $flat->route, $symfony['_route']);
+        // $flat->route is the route's metadata, declared mixed by RouteMatch; these fixtures always
+        // give it the int index Routers::flatRoutes() registered.
+        /** @var int $route */
+        $route = $flat->route;
+        static::assertSame('r' . $route, $symfony['_route']);
         static::assertSame($fastRoute[2], array_filter($flat->params, static fn(string $v): bool => $v !== ''));
         static::assertSame(
             array_filter($flat->params, static fn(string $v): bool => $v !== ''),

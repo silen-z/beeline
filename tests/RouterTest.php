@@ -54,10 +54,15 @@ final class RouterTest extends TestCase
      */
     private static function plainTable(array $definitions, mixed $metadata = null): RouteTable
     {
-        return new RouteTable(static function (array &$d, mixed &$m) use ($definitions, $metadata): void {
+        /**
+         * @param array<array-key, mixed> &$d
+         */
+        $collect = static function (array &$d, mixed &$m) use ($definitions, $metadata): void {
             $d = $definitions;
             $m = $metadata;
-        });
+        };
+
+        return new RouteTable($collect);
     }
 
     private static function route(RouteMatch|NoMatch $result): mixed
@@ -271,16 +276,16 @@ final class RouterTest extends TestCase
     {
         $cache = self::memoryCache();
         $calls = new ArrayObject();
-        $table = static fn(string $middleware): RouteTable => new RouteTable(
-            static function (array &$d, mixed &$m) use ($calls, $middleware): void {
-                $calls->append('definitions');
-                $d = [new RouteDefinition('/a', 'a')];
+        $table = static fn(string $middleware): RouteTable => new RouteTable(static function (
+            array &$d,
+            mixed &$m,
+        ) use ($calls, $middleware): void {
+            $calls->append('definitions');
+            $d = [new RouteDefinition('/a', 'a')];
 
-                $calls->append('metadata');
-                $m = ['middleware' => [$middleware]];
-            },
-            'routes',
-        );
+            $calls->append('metadata');
+            $m = ['middleware' => [$middleware]];
+        }, 'routes');
 
         static::assertSame(['middleware' => ['first']], new Router($table('first'), $cache)->metadata());
         // Answered from the cache: neither the routes nor the table metadata are produced again.

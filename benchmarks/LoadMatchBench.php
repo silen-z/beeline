@@ -72,10 +72,14 @@ final class LoadMatchBench
 
     public function benchSymfony(): void
     {
-        $matcher = new CompiledUrlMatcher(require $this->symfonyFile, new RequestContext());
+        /** @var array<array-key, mixed> $compiled */
+        $compiled = require $this->symfonyFile;
+        $matcher = new CompiledUrlMatcher($compiled, new RequestContext());
         try {
             $matcher->match($this->paths[$this->next++ % $this->count]);
         } catch (ResourceNotFoundException) {
+            // @mago-expect lint:no-empty-catch-clause - a non-matching path is an expected 404
+            // outcome for this benchmark, not an error worth logging.
         }
     }
 

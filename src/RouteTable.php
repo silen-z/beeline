@@ -81,7 +81,10 @@ final class RouteTable
      * full, including any side effect it has (e.g. repopulating a {@see MetadataRegistry}); whether
      * that's safe is the caller's question, not this method's.
      *
-     * @param array<int, RouteDefinition> &$definitions
+     * @param array<int, RouteDefinition> &$definitions what $collect is asked to produce, not a
+     *     guarantee: $collect is an arbitrary caller-supplied callable, so what actually comes out
+     *     may be anything — see {@see Compiler::compile()}'s own check.
+     * @param-out array<array-key, mixed> $definitions
      */
     public function collect(array &$definitions, mixed &$metadata): void
     {
@@ -102,6 +105,7 @@ final class RouteTable
         $metadata = null;
         $this->collect($definitions, $metadata);
 
+        /** @var array<int, RouteDefinition> $definitions trusted, not verified — same as the rest of this class; {@see Compiler::compile()} is what actually checks. */
         return $definitions;
     }
 

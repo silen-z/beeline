@@ -23,10 +23,15 @@ final class CompilerTest extends TestCase
      */
     private static function table(array $definitions, mixed $metadata = null): RouteTable
     {
-        return new RouteTable(static function (array &$d, mixed &$m) use ($definitions, $metadata): void {
+        /**
+         * @param array<array-key, mixed> &$d
+         */
+        $collect = static function (array &$d, mixed &$m) use ($definitions, $metadata): void {
             $d = $definitions;
             $m = $metadata;
-        });
+        };
+
+        return new RouteTable($collect);
     }
 
     /**
@@ -89,15 +94,12 @@ final class CompilerTest extends TestCase
         $this->expectExceptionMessageMatches('/' . preg_quote($message, delimiter: '/') . '/');
 
         // Deliberately not only RouteDefinitions: the compiler must reject anything else.
-        // @mago-expect analysis:less-specific-nested-argument-type
         Compiler::compile(self::table($define()));
     }
 
     public function testKeepsTheTableMetadataApartFromTheRouteMetadata(): void
     {
-        $compiled = Compiler::compile(
-            self::table([new RouteDefinition('/a', 'a')], ['middleware' => ['cors']]),
-        );
+        $compiled = Compiler::compile(self::table([new RouteDefinition('/a', 'a')], ['middleware' => ['cors']]));
 
         static::assertSame(['middleware' => ['cors']], $compiled['metadata']);
         static::assertSame(['a'], $compiled['routeMetadata']);

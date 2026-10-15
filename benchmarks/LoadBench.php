@@ -60,7 +60,10 @@ final class LoadBench
 
     public function benchSymfony(): void
     {
-        new CompiledUrlMatcher(require $this->symfonyFile, new RequestContext());
+        /** @var array<array-key, mixed> $compiled */
+        $compiled = require $this->symfonyFile;
+
+        new CompiledUrlMatcher($compiled, new RequestContext());
     }
 
     /**

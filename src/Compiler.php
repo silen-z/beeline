@@ -88,7 +88,6 @@ final class Compiler
      */
     public static function compile(RouteTable $table): array
     {
-        /** @var array<int, RouteDefinition> $definitions */
         $definitions = [];
         $metadata = null;
         $table->collect($definitions, $metadata);

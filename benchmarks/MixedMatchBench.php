@@ -72,6 +72,8 @@ final class MixedMatchBench
         try {
             $this->symfony->match($this->paths[$this->next++ % $this->count]);
         } catch (ResourceNotFoundException) {
+            // @mago-expect lint:no-empty-catch-clause - a non-matching path is an expected 404
+            // outcome for this benchmark, not an error worth logging.
         }
     }
 
