@@ -12,6 +12,8 @@ use PhpBench\Attributes\ParamProviders;
 use PhpBench\Attributes\Revs;
 use PhpBench\Attributes\Warmup;
 use SilenZ\Beeline\Matcher;
+use Symfony\Component\Routing\Exception\ResourceNotFoundException;
+use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
 
 /**
  * Steady-state matching: both routers are built once in setUp(), only the lookup is measured.
@@ -31,6 +33,8 @@ final class MatchBench
 
     private Dispatcher $fastRoute;
 
+    private CompiledUrlMatcher $symfony;
+
     /**
      * @param array{fixture: string, case: string, path: string} $params
      */
@@ -39,6 +43,7 @@ final class MatchBench
         $routes = Fixtures::get($params['fixture'])['routes'];
         $this->flat = Routers::flat($routes);
         $this->fastRoute = Routers::fastRoute($routes);
+        $this->symfony = Routers::symfony($routes);
     }
 
     /**
@@ -55,6 +60,17 @@ final class MatchBench
     public function benchFastRoute(array $params): void
     {
         $this->fastRoute->dispatch('GET', $params['path']);
+    }
+
+    /**
+     * @param array{fixture: string, case: string, path: string} $params
+     */
+    public function benchSymfony(array $params): void
+    {
+        try {
+            $this->symfony->match($params['path']);
+        } catch (ResourceNotFoundException) {
+        }
     }
 
     /**

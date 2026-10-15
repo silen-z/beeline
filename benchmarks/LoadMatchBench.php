@@ -11,6 +11,9 @@ use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\ParamProviders;
 use PhpBench\Attributes\Revs;
 use PhpBench\Attributes\Warmup;
+use Symfony\Component\Routing\Exception\ResourceNotFoundException;
+use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
+use Symfony\Component\Routing\RequestContext;
 
 use function count;
 use function FastRoute\cachedDispatcher;
@@ -31,6 +34,8 @@ final class LoadMatchBench
 
     private string $fastRouteFile = '';
 
+    private string $symfonyFile = '';
+
     /** @var non-empty-list<string> */
     private array $paths = [''];
 
@@ -45,6 +50,7 @@ final class LoadMatchBench
     {
         $this->fixture = $params['fixture'];
         $this->fastRouteFile = Routers::writeCaches($params['fixture']);
+        $this->symfonyFile = Routers::symfonyFile($params['fixture']);
         $this->paths = Fixtures::paths($params['fixture']);
         $this->count = count($this->paths);
         $this->next = 0;
@@ -62,6 +68,15 @@ final class LoadMatchBench
             'cacheFile' => $this->fastRouteFile,
         ]);
         $dispatcher->dispatch('GET', $this->paths[$this->next++ % $this->count]);
+    }
+
+    public function benchSymfony(): void
+    {
+        $matcher = new CompiledUrlMatcher(require $this->symfonyFile, new RequestContext());
+        try {
+            $matcher->match($this->paths[$this->next++ % $this->count]);
+        } catch (ResourceNotFoundException) {
+        }
     }
 
     /**

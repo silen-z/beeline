@@ -13,9 +13,15 @@ use SilenZ\Beeline\Matcher;
 use SilenZ\Beeline\RouteDefinition;
 use SilenZ\Beeline\Router;
 use SilenZ\Beeline\RouteTable;
+use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
+use Symfony\Component\Routing\Matcher\Dumper\CompiledUrlMatcherDumper;
+use Symfony\Component\Routing\RequestContext;
+use Symfony\Component\Routing\Route as SymfonyRoute;
+use Symfony\Component\Routing\RouteCollection;
 
 use function FastRoute\cachedDispatcher;
 use function FastRoute\simpleDispatcher;
+use function file_put_contents;
 use function is_file;
 use function preg_match;
 use function preg_replace;
@@ -26,6 +32,11 @@ use function usort;
 /**
  * Builds equivalent routers from one fixture. Route metadata is the route's index in the fixture,
  * so results of both routers can be compared.
+ *
+ * Symfony here means bare `CompiledUrlMatcher` construction, the fair comparison against this
+ * router's own bare `Matcher` — neither wraps itself in an application-level router that decides
+ * when to compile versus load from cache. That comparison (`Routes`/`LazyRoutes` against Symfony's
+ * actual `Router`) lives in switchyard instead, alongside the classes it's fair to compare.
  */
 final class Routers
 {
@@ -65,8 +76,10 @@ final class Routers
     public const string CACHE_DIRECTORY = __DIR__ . '/../var/bench-cache';
 
     /**
-     * Writes fresh caches of both routers for a fixture. This router's cache is stored in
-     * {@see CACHE_DIRECTORY} under the fixture name as key.
+     * Writes fresh caches of every router for a fixture. This router's and Symfony's are stored in
+     * {@see CACHE_DIRECTORY}, this router's under the fixture name as key, Symfony's at
+     * {@see symfonyFile()}; FastRoute's cache file is returned since it's named by the caller, not
+     * derived from the fixture name the way the other two are.
      *
      * @return string the path of FastRoute's cache file
      */
@@ -79,6 +92,10 @@ final class Routers
             $fixture,
             Compiler::compile(self::table(self::flatRoutes($routes))),
         );
+
+        file_put_contents(self::symfonyFile($fixture), new CompiledUrlMatcherDumper(
+            self::symfonyCollection($routes),
+        )->dump());
 
         // FastRoute only writes its cache when the file does not exist yet.
         if (is_file($fastRouteFile)) {
@@ -109,7 +126,7 @@ final class Routers
     public static function fastRoute(array $routes, ?string $cacheFile = null): Dispatcher
     {
         $define = static function (FastRouteCollector $collector) use ($routes): void {
-            foreach (self::fastRouteOrder($routes) as $index => $route) {
+            foreach (self::ordered($routes) as $index => $route) {
                 $collector->addRoute('GET', self::toFastRoutePattern($route), $index);
             }
         };
@@ -130,15 +147,55 @@ final class Routers
     }
 
     /**
-     * FastRoute resolves overlaps by registration order and rejects static routes registered after a
-     * variable route that shadows them. Registering static routes first, then parameter routes, then
-     * catch-alls gives it the same static > parameter > catch-all precedence this router has.
+     * A bare `CompiledUrlMatcher`, built fresh in memory — this router's own `Routers::flat()`,
+     * nothing wraps either in a cache-aware router.
+     *
+     * @param list<string> $routes
+     */
+    public static function symfony(array $routes): CompiledUrlMatcher
+    {
+        $compiled = new CompiledUrlMatcherDumper(self::symfonyCollection($routes))->getCompiledRoutes();
+
+        return new CompiledUrlMatcher($compiled, new RequestContext());
+    }
+
+    /**
+     * Where a fixture's Symfony cache file lives, written by {@see writeCaches()} — a pure path, like
+     * FastRoute's cache file name, so a caller can read it back without writing it again.
+     */
+    public static function symfonyFile(string $fixture): string
+    {
+        return self::CACHE_DIRECTORY . '/' . $fixture . '.symfony.php';
+    }
+
+    /**
+     * @param list<string> $routes
+     */
+    private static function symfonyCollection(array $routes): RouteCollection
+    {
+        $collection = new RouteCollection();
+        foreach (self::ordered($routes) as $index => $route) {
+            $symfony = new SymfonyRoute((string) preg_replace('#\{(\w+)[*+]\}$#', '{$1}', $route), methods: ['GET']);
+            if (preg_match('#\{(\w+)([*+])\}$#', $route, $m) === 1) {
+                $symfony->setRequirement($m[1], $m[2] === '+' ? '.+' : '.*');
+            }
+            $collection->add('r' . $index, $symfony);
+        }
+
+        return $collection;
+    }
+
+    /**
+     * FastRoute and Symfony both resolve overlaps by registration order and reject (or shadow) a
+     * static route registered after a variable route that would swallow it. Registering static
+     * routes first, then parameter routes, then catch-alls gives both the same static > parameter >
+     * catch-all precedence this router has.
      *
      * @param list<string> $routes
      *
      * @return array<int, string> original index => pattern
      */
-    private static function fastRouteOrder(array $routes): array
+    private static function ordered(array $routes): array
     {
         $rank = static fn(string $route): int => match (true) {
             preg_match('#\{\w+[*+]\}$#', $route) === 1 => 2,

@@ -11,6 +11,8 @@ use PhpBench\Attributes\Iterations;
 use PhpBench\Attributes\ParamProviders;
 use PhpBench\Attributes\Revs;
 use PhpBench\Attributes\Warmup;
+use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
+use Symfony\Component\Routing\RequestContext;
 
 use function FastRoute\cachedDispatcher;
 
@@ -31,6 +33,8 @@ final class LoadBench
 
     private string $fastRouteFile = '';
 
+    private string $symfonyFile = '';
+
     /**
      * @param array{fixture: string} $params
      */
@@ -38,6 +42,7 @@ final class LoadBench
     {
         $this->fixture = $params['fixture'];
         $this->fastRouteFile = Routers::writeCaches($params['fixture']);
+        $this->symfonyFile = Routers::symfonyFile($params['fixture']);
     }
 
     public function benchFlat(): void
@@ -51,6 +56,11 @@ final class LoadBench
         cachedDispatcher(static function (FastRouteCollector $_collector): void {}, [
             'cacheFile' => $this->fastRouteFile,
         ]);
+    }
+
+    public function benchSymfony(): void
+    {
+        new CompiledUrlMatcher(require $this->symfonyFile, new RequestContext());
     }
 
     /**

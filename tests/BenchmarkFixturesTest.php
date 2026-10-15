@@ -12,32 +12,47 @@ use SilenZ\Beeline\Benchmarks\Routers;
 use SilenZ\Beeline\Matcher;
 use SilenZ\Beeline\NoMatch;
 use SilenZ\Beeline\RouteMatch;
+use Symfony\Component\Routing\Exception\ResourceNotFoundException;
+use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
 
+use function array_diff_key;
 use function array_filter;
 use function array_key_exists;
 
 /**
- * Benchmarks are only meaningful if both routers do the same work, so every benchmark request
- * must produce the same result in both.
+ * Benchmarks are only meaningful if every router does the same work, so every benchmark request
+ * must produce the same result in all of them.
  */
 final class BenchmarkFixturesTest extends TestCase
 {
-    /** @var array<string, array{Matcher, Dispatcher}> */
+    /** @var array<string, array{Matcher, Dispatcher, CompiledUrlMatcher}> */
     private static array $routers = [];
 
     /**
-     * Building the large fixtures is slow, so both routers are built once per fixture.
+     * Building the large fixtures is slow, so every router is built once per fixture.
      *
-     * @return array{Matcher, Dispatcher}
+     * @return array{Matcher, Dispatcher, CompiledUrlMatcher}
      */
     private static function routers(string $fixture): array
     {
         if (!array_key_exists($fixture, self::$routers)) {
             $routes = Fixtures::get($fixture)['routes'];
-            self::$routers[$fixture] = [Routers::flat($routes), Routers::fastRoute($routes)];
+            self::$routers[$fixture] = [Routers::flat($routes), Routers::fastRoute($routes), Routers::symfony($routes)];
         }
 
         return self::$routers[$fixture];
+    }
+
+    /**
+     * @return ?array<string, string>
+     */
+    private static function symfonyMatch(CompiledUrlMatcher $symfony, string $path): ?array
+    {
+        try {
+            return $symfony->match($path);
+        } catch (ResourceNotFoundException) {
+            return null;
+        }
     }
 
     /**
@@ -51,22 +66,30 @@ final class BenchmarkFixturesTest extends TestCase
     #[DataProvider('requestProvider')]
     public function testRoutersAgree(string $fixture, string $case, string $path): void
     {
-        [$flatRouter, $fastRouteRouter] = self::routers($fixture);
+        [$flatRouter, $fastRouteRouter, $symfonyRouter] = self::routers($fixture);
         $flat = $flatRouter->match($path);
         $fastRoute = $fastRouteRouter->dispatch('GET', $path);
+        $symfony = self::symfonyMatch($symfonyRouter, $path);
 
         if ($case === 'not-found' || $case === 'backtrack-miss') {
             static::assertInstanceOf(NoMatch::class, $flat);
             static::assertSame(Dispatcher::NOT_FOUND, $fastRoute[0]);
+            static::assertNull($symfony, 'Symfony found a match');
 
             return;
         }
 
         static::assertInstanceOf(RouteMatch::class, $flat, 'flat router found no match');
         static::assertSame(Dispatcher::FOUND, $fastRoute[0], 'FastRoute found no match');
+        static::assertNotNull($symfony, 'Symfony found no match');
         static::assertSame($fastRoute[1], $flat->route);
+        static::assertSame('r' . $flat->route, $symfony['_route']);
         // FastRoute omits an optional catch-all that matched nothing; this router reports ''.
         static::assertSame($fastRoute[2], array_filter($flat->params, static fn(string $v): bool => $v !== ''));
+        static::assertSame(
+            array_filter($flat->params, static fn(string $v): bool => $v !== ''),
+            array_filter(array_diff_key($symfony, ['_route' => true]), static fn(string $v): bool => $v !== ''),
+        );
     }
 
     /**
@@ -80,19 +103,27 @@ final class BenchmarkFixturesTest extends TestCase
     #[DataProvider('mixedPathProvider')]
     public function testRoutersAgreeOnMixedPaths(string $fixture, string $path): void
     {
-        [$flatRouter, $fastRouteRouter] = self::routers($fixture);
+        [$flatRouter, $fastRouteRouter, $symfonyRouter] = self::routers($fixture);
         $flat = $flatRouter->match($path);
         $fastRoute = $fastRouteRouter->dispatch('GET', $path);
+        $symfony = self::symfonyMatch($symfonyRouter, $path);
 
         if ($flat instanceof NoMatch) {
             static::assertSame(Dispatcher::NOT_FOUND, $fastRoute[0]);
+            static::assertNull($symfony, 'Symfony found a match');
 
             return;
         }
 
         static::assertSame(Dispatcher::FOUND, $fastRoute[0], 'FastRoute found no match');
+        static::assertNotNull($symfony, 'Symfony found no match');
         static::assertSame($fastRoute[1], $flat->route);
+        static::assertSame('r' . $flat->route, $symfony['_route']);
         static::assertSame($fastRoute[2], array_filter($flat->params, static fn(string $v): bool => $v !== ''));
+        static::assertSame(
+            array_filter($flat->params, static fn(string $v): bool => $v !== ''),
+            array_filter(array_diff_key($symfony, ['_route' => true]), static fn(string $v): bool => $v !== ''),
+        );
     }
 
     public function testCatchAllPatternTranslation(): void

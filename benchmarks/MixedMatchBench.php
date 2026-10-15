@@ -12,6 +12,8 @@ use PhpBench\Attributes\ParamProviders;
 use PhpBench\Attributes\Revs;
 use PhpBench\Attributes\Warmup;
 use SilenZ\Beeline\Matcher;
+use Symfony\Component\Routing\Exception\ResourceNotFoundException;
+use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
 
 use function count;
 
@@ -32,6 +34,8 @@ final class MixedMatchBench
 
     private Dispatcher $fastRoute;
 
+    private CompiledUrlMatcher $symfony;
+
     /** @var non-empty-list<string> */
     private array $paths = [''];
 
@@ -47,6 +51,7 @@ final class MixedMatchBench
         $routes = Fixtures::get($params['fixture'])['routes'];
         $this->flat = Routers::flat($routes);
         $this->fastRoute = Routers::fastRoute($routes);
+        $this->symfony = Routers::symfony($routes);
         $this->paths = Fixtures::paths($params['fixture']);
         $this->count = count($this->paths);
         $this->next = 0;
@@ -60,6 +65,14 @@ final class MixedMatchBench
     public function benchFastRoute(): void
     {
         $this->fastRoute->dispatch('GET', $this->paths[$this->next++ % $this->count]);
+    }
+
+    public function benchSymfony(): void
+    {
+        try {
+            $this->symfony->match($this->paths[$this->next++ % $this->count]);
+        } catch (ResourceNotFoundException) {
+        }
     }
 
     /**

@@ -37,6 +37,14 @@ final class CompileBench
     }
 
     /**
+     * @param array{fixture: string} $params
+     */
+    public function benchSymfony(array $params): void
+    {
+        Routers::symfony(Fixtures::get($params['fixture'])['routes']);
+    }
+
+    /**
      * @return iterable<string, array{fixture: string}>
      */
     public function provideFixtures(): iterable
