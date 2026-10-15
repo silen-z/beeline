@@ -27,7 +27,7 @@ use function unlink;
 use function var_export;
 
 /**
- * Stores compiled routes as PHP files that are loaded with a plain `require`, and therefore served
+ * Stores compiled routes as PHP files that are loaded with a plain `include`, and therefore served
  * from OPcache in production.
  *
  * Each key maps to its own file in the directory: `routecache_{hash of the key}.php`, or plain
@@ -67,13 +67,14 @@ final class FileCache implements RouteCache
 
     public function get(?string $key): ?array
     {
-        $file = $this->file($key);
-        if (!is_file($file)) {
-            return null;
-        }
-
+        // A missing file is an expected cache miss, not a bug: `include`, unlike `require`, only
+        // warns and returns false instead of a fatal error, so a miss costs the one stat its own
+        // attempt to open the file needs anyway, instead of that plus a separate is_file() first.
+        // @mago-expect lint:no-error-control-operator - the miss is handled below, by is_array()
+        // rejecting whatever a failed include returns (`false`), same as it already does for a
+        // file that loaded fine but didn't return an array.
         /** @var mixed $compiled */
-        $compiled = require $file;
+        $compiled = @include $this->file($key);
 
         return is_array($compiled) ? $compiled : null;
     }
