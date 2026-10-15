@@ -26,6 +26,17 @@ use function unlink;
 
 final class FileCacheTest extends TestCase
 {
+    /**
+     * @param list<mixed> $definitions
+     */
+    private static function table(array $definitions, mixed $metadata = null): RouteTable
+    {
+        return new RouteTable(static function (array &$d, mixed &$m) use ($definitions, $metadata): void {
+            $d = $definitions;
+            $m = $metadata;
+        });
+    }
+
     private string $directory;
 
     protected function setUp(): void
@@ -60,7 +71,7 @@ final class FileCacheTest extends TestCase
         ]);
         $routes[] = new RouteDefinition('/api/123', 'numeric segment');
         $routes[] = new RouteDefinition('/assets/{path*}', 'assets');
-        $compiled = Compiler::compile(new RouteTable($routes, metadata: [
+        $compiled = Compiler::compile(self::table($routes, [
             'middleware' => ['cors', Method::Get],
             'weight' => 0.5,
         ]));
@@ -78,7 +89,7 @@ final class FileCacheTest extends TestCase
 
     public function testANullKeyIsStoredAndReadBackUnchanged(): void
     {
-        $compiled = Compiler::compile(new RouteTable([new RouteDefinition('/a', 'a')]));
+        $compiled = Compiler::compile(self::table([new RouteDefinition('/a', 'a')]));
 
         $cache = new FileCache($this->directory);
         $cache->set(null, $compiled);
@@ -89,7 +100,7 @@ final class FileCacheTest extends TestCase
     public function testFileThatDoesNotReturnAnArrayIsIgnored(): void
     {
         $cache = new FileCache($this->directory);
-        $cache->set('routes', Compiler::compile(new RouteTable([])));
+        $cache->set('routes', Compiler::compile(self::table([])));
         file_put_contents($cache->file('routes'), data: '<?php return 42;');
 
         static::assertNull($cache->get('routes'));
@@ -128,10 +139,15 @@ final class FileCacheTest extends TestCase
     public function testRouterUsesTheFileCache(): void
     {
         $cache = new FileCache($this->directory);
-        new Router(new RouteTable(static fn(): array => [new RouteDefinition('/a', 'a')], 'app'), $cache)->match('/a');
+        $first = new RouteTable(static function (array &$d, mixed &$m): void {
+            $d = [new RouteDefinition('/a', 'a')];
+        }, 'app');
+        new Router($first, $cache)->match('/a');
 
         $router = new Router(
-            new RouteTable(static fn() => throw new LogicException('should not compile'), 'app'),
+            new RouteTable(static function (): never {
+                throw new LogicException('should not compile');
+            }, 'app'),
             $cache,
         );
 

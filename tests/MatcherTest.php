@@ -22,7 +22,11 @@ final class MatcherTest extends TestCase
      */
     private static function matcher(Closure $define): Matcher
     {
-        return new Matcher(Compiler::compile(new RouteTable($define())));
+        $table = new RouteTable(static function (array &$definitions, mixed &$metadata) use ($define): void {
+            $definitions = $define();
+        });
+
+        return new Matcher(Compiler::compile($table));
     }
 
     /**

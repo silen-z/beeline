@@ -55,7 +55,11 @@ final class MatcherPropertyTest extends TestCase
                 $set[] = new RouteDefinition($path, $index);
             }
 
-            $matcher = new Matcher(Compiler::compile(new RouteTable($set)));
+            $table = new RouteTable(static function (array &$definitions, mixed &$metadata) use ($set): void {
+                $definitions = $set;
+            });
+
+            $matcher = new Matcher(Compiler::compile($table));
         } catch (InvalidRouteException) {
             // Random sets may mix {r*} and {r+} on one node, which is rejected by design.
             $this->addToAssertionCount(1);

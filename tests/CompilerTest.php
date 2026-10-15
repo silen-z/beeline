@@ -19,6 +19,17 @@ use function preg_quote;
 final class CompilerTest extends TestCase
 {
     /**
+     * @param list<mixed> $definitions
+     */
+    private static function table(array $definitions, mixed $metadata = null): RouteTable
+    {
+        return new RouteTable(static function (array &$d, mixed &$m) use ($definitions, $metadata): void {
+            $d = $definitions;
+            $m = $metadata;
+        });
+    }
+
+    /**
      * @return iterable<string, array{Closure(): list<mixed>, string}>
      */
     public static function invalidDeclarationProvider(): iterable
@@ -79,13 +90,13 @@ final class CompilerTest extends TestCase
 
         // Deliberately not only RouteDefinitions: the compiler must reject anything else.
         // @mago-expect analysis:less-specific-nested-argument-type
-        Compiler::compile(new RouteTable($define()));
+        Compiler::compile(self::table($define()));
     }
 
     public function testKeepsTheTableMetadataApartFromTheRouteMetadata(): void
     {
         $compiled = Compiler::compile(
-            new RouteTable([new RouteDefinition('/a', 'a')], metadata: ['middleware' => ['cors']]),
+            self::table([new RouteDefinition('/a', 'a')], ['middleware' => ['cors']]),
         );
 
         static::assertSame(['middleware' => ['cors']], $compiled['metadata']);
@@ -98,7 +109,7 @@ final class CompilerTest extends TestCase
         $this->expectException(InvalidRouteException::class);
         $this->expectExceptionMessageMatches('/^Metadata of the route table contains a value of type stdClass/');
 
-        Compiler::compile(new RouteTable([], metadata: ['middleware' => [new stdClass()]]));
+        Compiler::compile(self::table([], ['middleware' => [new stdClass()]]));
     }
 
     public function testCompilesToFlatNodeTable(): void
@@ -136,7 +147,7 @@ final class CompilerTest extends TestCase
                 'routeMetadata' => ['users', 'user', 'health', 'files', 'about', 'create-user', 'user-by-name'],
                 'paramNames' => [1 => ['id'], 3 => ['path'], 6 => ['name']],
             ],
-            Compiler::compile(new RouteTable($routes)),
+            Compiler::compile(self::table($routes)),
         );
     }
 
@@ -168,7 +179,7 @@ final class CompilerTest extends TestCase
                 'routeMetadata' => ['archived', 'item', 'catch'],
                 'paramNames' => [0 => ['id'], 1 => ['id'], 2 => ['rest']],
             ],
-            Compiler::compile(new RouteTable($routes)),
+            Compiler::compile(self::table($routes)),
         );
     }
 
@@ -180,7 +191,7 @@ final class CompilerTest extends TestCase
             new RouteDefinition('/files/{c*}', 'delete'),
         ];
 
-        $compiled = Compiler::compile(new RouteTable($routes));
+        $compiled = Compiler::compile(self::table($routes));
 
         // Node 1 ("files") carries all three route ids after the "needs a non-empty rest" flag,
         // flattened into the same list rather than nested as [false, [0, 1, 2]].

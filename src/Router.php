@@ -18,10 +18,12 @@ use SilenZ\Beeline\Cache\RouteCache;
  * request instead.
  *
  * A table with a {@see MetadataRegistry} ({@see RouteTable::registry()}) is the exception:
- * {@see RouteTable::definitions()} still runs every request regardless of the compiled cache, since
+ * {@see RouteTable::collect()} still runs every request regardless of the compiled cache, since
  * the registry — never itself cached — needs declaring to repopulate it. A table without one
  * (e.g. one built from {@see Http\LazyRoutes}) has nothing to repopulate, so it keeps the cache-gated
- * behavior above exactly.
+ * behavior above exactly. Either way, this class calls {@see RouteTable::collect()} at most once per
+ * request — {@see RouteTable} itself no longer guards against being declared twice, so that guarantee
+ * now lives here instead.
  *
  * @psalm-import-type CompiledRoutes from Compiler
  */
@@ -95,6 +97,8 @@ final class Router
 
         $cached = $this->cache->get($key);
         if ($cached !== null && ($cached['version'] ?? null) === Compiler::FORMAT_VERSION) {
+            $this->repopulateRegistry();
+
             /** @var CompiledRoutes $cached */
             return $cached;
         }
@@ -103,5 +107,23 @@ final class Router
         $this->cache->set($key, $compiled);
 
         return $compiled;
+    }
+
+    /**
+     * A registry-backed table's metadata never survives the cache as real instances, only as ids, so
+     * a cache hit still has to declare once — purely for that side effect — to give the registry
+     * fresh instances for this request; the compiled structure itself, what's actually cached, doesn't
+     * change. A table without a registry has nothing to repopulate, so this is a no-op for it.
+     */
+    private function repopulateRegistry(): void
+    {
+        if ($this->routes->registry() === null) {
+            return;
+        }
+
+        /** @var array<int, RouteDefinition> $definitions */
+        $definitions = [];
+        $metadata = null;
+        $this->routes->collect($definitions, $metadata);
     }
 }

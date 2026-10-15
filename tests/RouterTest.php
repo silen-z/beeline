@@ -8,6 +8,7 @@ use ArrayObject;
 use PHPUnit\Framework\TestCase;
 use SilenZ\Beeline\Cache\RouteCache;
 use SilenZ\Beeline\Compiler;
+use SilenZ\Beeline\MetadataRegistry;
 use SilenZ\Beeline\NoMatch;
 use SilenZ\Beeline\RouteDefinition;
 use SilenZ\Beeline\RouteMatch;
@@ -42,7 +43,21 @@ final class RouterTest extends TestCase
      */
     private static function table(callable $definitions, ?string $cacheKey = null): RouteTable
     {
-        return new RouteTable($definitions, $cacheKey);
+        return new RouteTable(static function (array &$d, mixed &$m) use ($definitions): void {
+            $produced = $definitions();
+            $d = is_array($produced) ? $produced : iterator_to_array($produced, preserve_keys: false);
+        }, $cacheKey);
+    }
+
+    /**
+     * @param list<mixed> $definitions
+     */
+    private static function plainTable(array $definitions, mixed $metadata = null): RouteTable
+    {
+        return new RouteTable(static function (array &$d, mixed &$m) use ($definitions, $metadata): void {
+            $d = $definitions;
+            $m = $metadata;
+        });
     }
 
     private static function route(RouteMatch|NoMatch $result): mixed
@@ -171,7 +186,7 @@ final class RouterTest extends TestCase
     public function testEntryFromAnIncompatibleVersionIsRecompiled(): void
     {
         $cache = self::memoryCache();
-        $cache->set('routes', ['version' => 0] + Compiler::compile(new RouteTable([])));
+        $cache->set('routes', ['version' => 0] + Compiler::compile(self::plainTable([])));
 
         $router = new Router(self::table(static fn(): array => [new RouteDefinition('/a', 'a')], 'routes'), $cache);
 
@@ -204,15 +219,19 @@ final class RouterTest extends TestCase
             new RouteDefinition('/users/{id}', 'show'),
         ]));
 
-        $definitions = [...$router->table()->definitions()];
+        $definitions = $router->table()->definitions();
 
         static::assertCount(2, $definitions);
         static::assertSame('/users', $definitions[0]->path);
         static::assertSame('/users/{id}', $definitions[1]->path);
     }
 
-    public function testDefinitionsCallsTheRoutesCallableOnlyOnce(): void
+    public function testDefinitionsRunsTheCollectCallableEveryTime(): void
     {
+        // Unlike earlier shapes of RouteTable, it no longer memoizes on its own: calling a
+        // convenience getter twice declares twice. Only Router guarantees "once per request", and
+        // only for its own path (match()/metadata()/routes()), not for definitions()/metadata() read
+        // directly off table() — see RouteTable's class docs.
         $calls = new ArrayObject();
         $router = new Router(self::table(static function () use ($calls): array {
             $calls->append(true);
@@ -223,7 +242,7 @@ final class RouterTest extends TestCase
         $router->table()->definitions();
         $router->table()->definitions();
 
-        static::assertCount(1, $calls);
+        static::assertCount(2, $calls);
     }
 
     public function testDefinitionsIgnoresTheCache(): void
@@ -238,7 +257,7 @@ final class RouterTest extends TestCase
         )], 'routes'), $cache);
 
         static::assertSame('first', self::route($laterRouter->match('/a')));
-        static::assertSame('second', iterator_to_array($laterRouter->table()->definitions())[0]->metadata);
+        static::assertSame('second', $laterRouter->table()->definitions()[0]->metadata);
     }
 
     public function testMetadataIsNullByDefault(): void
@@ -253,17 +272,14 @@ final class RouterTest extends TestCase
         $cache = self::memoryCache();
         $calls = new ArrayObject();
         $table = static fn(string $middleware): RouteTable => new RouteTable(
-            static function () use ($calls): array {
+            static function (array &$d, mixed &$m) use ($calls, $middleware): void {
                 $calls->append('definitions');
+                $d = [new RouteDefinition('/a', 'a')];
 
-                return [new RouteDefinition('/a', 'a')];
+                $calls->append('metadata');
+                $m = ['middleware' => [$middleware]];
             },
             'routes',
-            static function () use ($calls, $middleware): array {
-                $calls->append('metadata');
-
-                return ['middleware' => [$middleware]];
-            },
         );
 
         static::assertSame(['middleware' => ['first']], new Router($table('first'), $cache)->metadata());
@@ -274,23 +290,60 @@ final class RouterTest extends TestCase
 
     public function testMetadataMayBeGivenAsAPlainValue(): void
     {
-        $router = new Router(new RouteTable([], metadata: ['middleware' => ['cors']]));
+        $router = new Router(self::plainTable([], ['middleware' => ['cors']]));
 
         static::assertSame(['middleware' => ['cors']], $router->metadata());
     }
 
     public function testDefinitionsMayBeGivenAsAPlainArray(): void
     {
-        $router = new Router(new RouteTable([new RouteDefinition('/a', 'a')]));
+        $router = new Router(self::plainTable([new RouteDefinition('/a', 'a')]));
 
         static::assertSame('a', self::route($router->match('/a')));
     }
 
     public function testMetadataIsNeverMatched(): void
     {
-        $router = new Router(new RouteTable([], metadata: 'table'));
+        $router = new Router(self::plainTable([], 'table'));
 
         static::assertInstanceOf(NoMatch::class, $router->match('/'));
         static::assertSame([], $router->routes());
+    }
+
+    public function testARegistryBackedTableStillDeclaresOnACacheHit(): void
+    {
+        $cache = self::memoryCache();
+        $calls = new ArrayObject();
+        $registry = new MetadataRegistry();
+        $table = static fn(): RouteTable => new RouteTable(
+            static function (array &$d, mixed &$m) use ($calls, $registry): void {
+                $calls->append(true);
+                $d = [new RouteDefinition('/a', $registry->register('a'))];
+                $m = $registry->register(['middleware' => []]);
+            },
+            'routes',
+            $registry,
+        );
+
+        new Router($table(), $cache)->match('/a'); // cache miss: declares once
+        new Router($table(), $cache)->match('/a'); // cache hit, but registry-backed: declares again
+
+        static::assertCount(2, $calls);
+    }
+
+    public function testATableWithoutARegistryDoesNotDeclareOnACacheHit(): void
+    {
+        $cache = self::memoryCache();
+        $calls = new ArrayObject();
+        $define = static function () use ($calls): array {
+            $calls->append(true);
+
+            return [new RouteDefinition('/a', 'a')];
+        };
+
+        new Router(self::table($define, 'routes'), $cache)->match('/a');
+        new Router(self::table($define, 'routes'), $cache)->match('/a');
+
+        static::assertCount(1, $calls);
     }
 }

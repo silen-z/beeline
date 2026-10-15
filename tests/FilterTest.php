@@ -30,7 +30,11 @@ final class FilterTest extends TestCase
             $set[] = new RouteDefinition($path, $metadata);
         }
 
-        return new Matcher(Compiler::compile(new RouteTable($set)));
+        $table = new RouteTable(static function (array &$definitions, mixed &$metadata) use ($set): void {
+            $definitions = $set;
+        });
+
+        return new Matcher(Compiler::compile($table));
     }
 
     /**

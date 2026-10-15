@@ -4,24 +4,27 @@ declare(strict_types=1);
 
 namespace SilenZ\Beeline;
 
-use Closure;
-
-use function is_array;
-use function is_callable;
-use function iterator_to_array;
-
 /**
- * Where {@see Router} gets its routes from: a cache key, the route definitions behind it, the
- * table's own metadata and an optional {@see MetadataRegistry}, as one unit.
+ * Where {@see Router} gets its routes from: a cache key, an optional {@see MetadataRegistry}, and a
+ * callable that declares the route definitions and the table's own metadata — as one unit.
  *
- *     new RouteTable(static fn(): array => [new RouteDefinition('/', 'home')], 'routes-' . APP_VERSION);
+ *     new RouteTable(static function (array &$definitions, mixed &$metadata): void {
+ *         $definitions = [new RouteDefinition('/', 'home')];
+ *     }, 'routes-' . APP_VERSION);
  *
- * Like FastRoute's cached dispatcher, the definitions only need producing when the cache has no entry
- * for {@see cacheKey()}: given as a callable, they're only declared then, on first use — see
- * {@see definitions()}. The key lives on the same object, instead of being passed to `Router` as a
- * separate argument, so the two can't drift apart the way two independent values could: whatever
- * decides the key is right there next to whatever decides the definitions — the same reason
- * {@see registry()} lives here too, rather than traveling separately alongside a `Router`.
+ * Unlike earlier shapes of this class, `RouteTable` itself holds no declared state and does no
+ * memoizing: `$collect` is a plain delegate, called exactly as many times as {@see collect()} is
+ * called. Calling it more than once per request (re-declaring, possibly re-populating a
+ * {@see MetadataRegistry} a second time) is a correctness question for whoever calls {@see collect()}
+ * — {@see Router} — not something this class protects against on its own; see {@see Router::load()}.
+ * {@see definitions()}/{@see metadata()} exist for a caller that only wants one side and doesn't care
+ * about calling $collect again to get it (e.g. tooling that reads routes but never compiles) — they're
+ * not the router's own hot path.
+ *
+ * The key lives on the same object, instead of being passed to `Router` as a separate argument, so
+ * the two can't drift apart the way two independent values could: whatever decides the key is right
+ * there next to whatever decides the definitions — the same reason {@see registry()} lives here too,
+ * rather than traveling separately alongside a `Router`.
  *
  * Nothing is invalidated automatically, so anything that changes which routes get compiled (a deploy,
  * configuration deciding which routes exist) must change the cache key, e.g. by including an
@@ -29,51 +32,32 @@ use function iterator_to_array;
  */
 final class RouteTable
 {
-    /** @var (Closure(): iterable<int, RouteDefinition>)|iterable<int, RouteDefinition> */
-    private readonly Closure|iterable $definitions;
-
-    private readonly mixed $metadataSource;
-
-    /** @var ?array<int, RouteDefinition> */
-    private ?array $resolvedDefinitions = null;
-
-    private bool $metadataResolved = false;
-
-    private mixed $resolvedMetadata = null;
+    /** @var callable(array<int, RouteDefinition> &$definitions, mixed &$metadata): void */
+    private readonly mixed $collect;
 
     /**
-     * @param iterable<int, RouteDefinition>|callable(): iterable<int, RouteDefinition> $definitions
-     *     the routes, in declaration order: a callable (a closure, an invokable object, a function or
-     *     method name) is only called the first time they're needed — see {@see definitions()}. Give
-     *     a generator as a callable producing it, since one can only be iterated once; this materializes
-     *     it into an array the first time, so later calls can still read it.
+     * @param callable(array<int, RouteDefinition> &$definitions, mixed &$metadata): void $collect
+     *     fills in both outputs; called exactly once per {@see collect()} call, with no memoizing of
+     *     its own — see the class docs.
      * @param ?string $cacheKey identifies these routes in the cache; `null` (the default) still caches,
      *     under whatever the given `RouteCache` treats as its own default for a `null` key — only
      *     `Router` being given no cache at all compiles on every request instead, e.g. in development.
      *     A plain value, since it's read on every request
-     * @param mixed $metadata metadata of these routes as a whole rather than of any one route, e.g.
-     *     what applies to every request whether a route matches or not: plain data like a route's own,
-     *     cached with the routes, or a closure producing it, called like the definitions' only the
-     *     first time it's needed. Only a `Closure` counts as lazy here, not any callable: plain
-     *     metadata like `'trim'` or `['Foo', 'bar']` would pass for one. Read back with
-     *     {@see metadata()}, or, from the cache, with {@see Matcher::metadata()} via
-     *     {@see Router::matcher()}
-     * @param ?MetadataRegistry $registry opaque to the core router, which never reads it itself —
-     *     {@see Matcher}/{@see Router} only consult it through {@see registry()}, and only when given
-     *     one at all. `null` (the default) for a table whose metadata is already fully cache-safe
-     *     ({@see Http\LazyRoutes} never needs one, since it never declares anything that couldn't
-     *     survive a cache round trip); a declaration layer such as `Http\Routes` that allows real
-     *     instances gives one instead, so its routes' and its own metadata can hold them freely.
+     * @param ?MetadataRegistry $registry opaque to this class and to the core router, neither of which
+     *     ever reads it themselves — {@see Matcher}/{@see Router} only consult it through
+     *     {@see registry()}, and only when given one at all. `null` (the default) for a table whose
+     *     metadata is already fully cache-safe ({@see Http\LazyRoutes} never needs one, since it never
+     *     declares anything that couldn't survive a cache round trip); a declaration layer such as
+     *     `Http\Routes` that allows real instances gives one instead, so its routes' and its own
+     *     metadata can hold them freely — registering through it, if `$collect` wants to, is
+     *     `$collect`'s job, not this class's.
      */
     public function __construct(
-        iterable|callable $definitions,
+        callable $collect,
         private readonly ?string $cacheKey = null,
-        mixed $metadata = null,
         private readonly ?MetadataRegistry $registry = null,
     ) {
-        // A list of RouteDefinitions is never callable, so a callable is always the lazy form.
-        $this->definitions = is_callable($definitions) ? $definitions(...) : $definitions;
-        $this->metadataSource = $metadata;
+        $this->collect = $collect;
     }
 
     public function cacheKey(): ?string
@@ -82,58 +66,54 @@ final class RouteTable
     }
 
     /**
-     * The table's {@see MetadataRegistry}, if it has one — ensuring it's populated first: declaring
-     * (if not already done this request, see {@see definitions()}/{@see metadata()}) is what populates
-     * it, as a side effect of building the full metadata {@see Http\Route}/{@see Http\Routes} hand it.
+     * The table's {@see MetadataRegistry}, if it has one — a plain getter, unlike earlier shapes of
+     * this class: populating it is {@see Router}'s job now (see {@see Router::load()}), not a side
+     * effect of reading this.
      */
     public function registry(): ?MetadataRegistry
     {
-        if ($this->registry !== null) {
-            // Called for the side effect of populating the registry; the result is read again,
-            // memoized, by whoever actually needs it (e.g. Compiler::compile()).
-            $this->definitions();
-            $this->metadata();
-        }
-
         return $this->registry;
     }
 
     /**
-     * The routes themselves, declared the first time they're needed and memoized after that, for the
-     * lifetime of this table — so declaring with a side effect (such as populating a
-     * {@see MetadataRegistry}) only ever happens once per request, however many times this is called.
+     * Declares the routes and the table's own metadata in one pass, by calling `$collect` — given at
+     * construction — exactly once. Calling this more than once per request runs `$collect` again in
+     * full, including any side effect it has (e.g. repopulating a {@see MetadataRegistry}); whether
+     * that's safe is the caller's question, not this method's.
      *
-     * @return iterable<int, RouteDefinition>
+     * @param array<int, RouteDefinition> &$definitions
      */
-    public function definitions(): iterable
+    public function collect(array &$definitions, mixed &$metadata): void
     {
-        if ($this->resolvedDefinitions === null) {
-            $produced = $this->definitions instanceof Closure ? ($this->definitions)() : $this->definitions;
-            $this->resolvedDefinitions = is_array($produced)
-                ? $produced
-                : iterator_to_array($produced, preserve_keys: false);
-        }
-
-        return $this->resolvedDefinitions;
+        ($this->collect)($definitions, $metadata);
     }
 
     /**
-     * The table's own metadata, declared the first time it's needed and memoized after that, same as
-     * {@see definitions()}; `null` by default.
+     * Convenience for a caller that only wants the definitions and doesn't care that this runs
+     * `$collect` in full to get them — e.g. tooling that reads routes but never compiles or matches.
+     * Not {@see Router}'s own path: it calls {@see collect()} directly, once, to get both outputs from
+     * a single declare.
+     *
+     * @return array<int, RouteDefinition>
+     */
+    public function definitions(): array
+    {
+        $definitions = [];
+        $metadata = null;
+        $this->collect($definitions, $metadata);
+
+        return $definitions;
+    }
+
+    /**
+     * Convenience for a caller that only wants the table's own metadata; see {@see definitions()}.
      */
     public function metadata(): mixed
     {
-        if ($this->metadataResolved) {
-            return $this->resolvedMetadata;
-        }
+        $definitions = [];
+        $metadata = null;
+        $this->collect($definitions, $metadata);
 
-        $this->metadataResolved = true;
-
-        return $this->resolvedMetadata = $this->resolveMetadataSource();
-    }
-
-    private function resolveMetadataSource(): mixed
-    {
-        return $this->metadataSource instanceof Closure ? ($this->metadataSource)() : $this->metadataSource;
+        return $metadata;
     }
 }

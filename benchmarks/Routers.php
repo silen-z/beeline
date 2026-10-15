@@ -49,7 +49,17 @@ final class Routers
      */
     public static function flat(array $routes): Matcher
     {
-        return new Matcher(Compiler::compile(new RouteTable(self::flatRoutes($routes))));
+        return new Matcher(Compiler::compile(self::table(self::flatRoutes($routes))));
+    }
+
+    /**
+     * @param list<RouteDefinition> $definitions
+     */
+    private static function table(array $definitions): RouteTable
+    {
+        return new RouteTable(static function (array &$d, mixed &$metadata) use ($definitions): void {
+            $d = $definitions;
+        });
     }
 
     public const string CACHE_DIRECTORY = __DIR__ . '/../var/bench-cache';
@@ -67,7 +77,7 @@ final class Routers
 
         new FileCache(self::CACHE_DIRECTORY)->set(
             $fixture,
-            Compiler::compile(new RouteTable(self::flatRoutes($routes))),
+            Compiler::compile(self::table(self::flatRoutes($routes))),
         );
 
         // FastRoute only writes its cache when the file does not exist yet.
@@ -86,7 +96,9 @@ final class Routers
     public static function cachedFlat(string $fixture): Router
     {
         return new Router(
-            new RouteTable(static fn(): iterable => throw new LogicException('Cache entry missing.'), $fixture),
+            new RouteTable(static function (): never {
+                throw new LogicException('Cache entry missing.');
+            }, $fixture),
             new FileCache(self::CACHE_DIRECTORY),
         );
     }

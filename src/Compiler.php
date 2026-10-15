@@ -88,10 +88,14 @@ final class Compiler
      */
     public static function compile(RouteTable $table): array
     {
+        /** @var array<int, RouteDefinition> $definitions */
+        $definitions = [];
+        $metadata = null;
+        $table->collect($definitions, $metadata);
+
         $routes = [];
-        // Checked anyway: the definitions' type is only documented, and a closure may return anything.
+        // Checked anyway: $definitions' type is only documented, and $collect may produce anything.
         /** @var iterable<mixed> $definitions */
-        $definitions = $table->definitions();
         foreach ($definitions as $route) {
             if (!$route instanceof RouteDefinition) {
                 throw new InvalidRouteException(sprintf(
@@ -105,7 +109,6 @@ final class Compiler
             $routes[] = $route;
         }
 
-        $metadata = $table->metadata();
         self::assertExportable($metadata, 'the route table');
 
         $root = self::tree($routes);
