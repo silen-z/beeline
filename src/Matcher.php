@@ -172,7 +172,7 @@ final readonly class Matcher
                 return new RouteMatch($this->resolve($this->routeMetadata[is_int($static) ? $static : $static[0]]), []);
             }
 
-            $match = $this->select(is_int($static) ? [$static] : $static, [], $filter, $rejected);
+            $match = $this->select($static, [], $filter, $rejected);
             if ($match !== null) {
                 return $match;
             }
@@ -219,7 +219,7 @@ final readonly class Matcher
                     if ($routes !== self::NONE) {
                         $match = $filter === null
                             ? $this->result(is_int($routes) ? $routes : $routes[0], $values)
-                            : $this->select(is_int($routes) ? [$routes] : $routes, $values, $filter, $rejected);
+                            : $this->select($routes, $values, $filter, $rejected);
                         if ($match !== null) {
                             return $match;
                         }
@@ -314,22 +314,38 @@ final readonly class Matcher
 
     /**
      * Offers candidates to the filter in declaration order, starting at $offset; the rejected ones
-     * are collected. $offset lets a flattened {@see CatchEntry} be read in place, past its leading
-     * flag, without slicing it into a new array first.
+     * are collected. A single id — the common case for `$static`/`$routes`, see {@see RouteIds} —
+     * skips both the loop and the one-element array the caller would otherwise have to wrap it into
+     * first, just to hand it to a uniform loop; that wrap is a real allocation on every filtered
+     * match of an unshared path, unlike the `is_int()` check itself elsewhere in this class, which
+     * is free. $offset lets a flattened {@see CatchEntry} be read in place, past its leading flag,
+     * without slicing it into a new array first — never combined with a single id, which never comes
+     * from a `CatchEntry`.
      *
-     * @param non-empty-list<int>|CatchEntry $candidates a list of ids, or (with $offset) a flattened
-     *     catch entry; callers normalize a single id into a one-element list first
+     * @param int|non-empty-list<int>|CatchEntry $candidates a single id, a list of ids, or (with
+     *     $offset) a flattened catch entry
      * @param array<int, string> $values
      * @param callable(RouteMatch): bool $filter
      * @param list<RouteMatch> $rejected
      */
     private function select(
-        array $candidates,
+        int|array $candidates,
         array $values,
         callable $filter,
         array &$rejected,
         int $offset = 0,
     ): ?RouteMatch {
+        if (is_int($candidates)) {
+            $match = $this->result($candidates, $values);
+            if ($filter($match)) {
+                return $match;
+            }
+
+            $rejected[] = $match;
+
+            return null;
+        }
+
         for ($i = $offset, $count = count($candidates); $i < $count; $i++) {
             /** @var int $routeId */
             $routeId = $candidates[$i];
