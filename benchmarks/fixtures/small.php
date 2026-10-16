@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// A small, realistic application: 21 routes with shared prefixes.
+// A small, realistic application: 22 routes with shared prefixes.
 return [
     'routes' => [
         '/',
@@ -20,6 +20,7 @@ return [
         '/posts/{slug}',
         '/posts/{slug}/comments',
         '/tags/{tag}',
+        '/search/{query?}',
         '/admin',
         '/admin/users',
         '/admin/settings',
@@ -31,6 +32,8 @@ return [
         'static' => '/admin/settings',
         'param' => '/users/42/posts/7',
         'catch-all' => '/assets/css/app.css',
+        'optional-present' => '/search/widgets',
+        'optional-absent' => '/search',
         'not-found' => '/nope/x',
         'backtrack-hit' => '/users/me/edit',
         'backtrack-miss' => '/users/me/unknown',

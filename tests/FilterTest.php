@@ -13,7 +13,6 @@ use SilenZ\Beeline\RouteDefinition;
 use SilenZ\Beeline\RouteMatch;
 use SilenZ\Beeline\Tests\Fixtures\CallableRouteTable;
 
-use function array_key_exists;
 use function array_map;
 use function ctype_digit;
 use function in_array;
@@ -196,9 +195,11 @@ final class FilterTest extends TestCase
             ['/users/{id}', ['name' => 'by-id']],
             ['/users/{slug}', ['name' => 'by-slug']],
         ]);
-        $numericId = static fn(RouteMatch $match): bool => (
-            !array_key_exists('id', $match->params) || ctype_digit($match->params['id'])
-        );
+        $numericId = static function (RouteMatch $match): bool {
+            $id = $match->params['id'] ?? null;
+
+            return $id === null || ctype_digit($id);
+        };
 
         $byId = $matcher->match('/users/42', $numericId);
         $bySlug = $matcher->match('/users/john%20doe', $numericId);

@@ -32,8 +32,9 @@ use function sprintf;
  *     'static'        => ['/users' => 4, '/' => [0, 1]], // full path => route id(s), parameterless routes
  *     'edges'         => [0 => ['users' => 1]],          // node => static segment => child node
  *     'param'         => [1 => 2],                       // node => child node of its {param} edge
- *     'catch'         => [3 => [false, 7]],               // node => [needs a non-empty rest
- *                                                         // ({name+}, not {name*}), ...route ids]
+ *     'catch'         => [3 => [0, 7]],                    // node => [which catch-all kind: 0
+ *                                                         // {name*}, 1 {name+}, 2 {name?},
+ *                                                         // ...route ids]
  *     'routes'        => [2 => 5],                       // node => route id(s) ending there
  *     'routeMetadata' => [[...], ...],                   // route id => the route's metadata
  *     'paramNames'    => [5 => ['id']],                  // route id => parameter names, capture order
@@ -53,9 +54,9 @@ use function sprintf;
  * the tables above.
  *
  * @psalm-type RouteIds = int|non-empty-list<int> a single route id, or several in declaration order
- * @psalm-type CatchEntry = list{bool, int, ...<int>} a catch-all edge, flattened: index 0 is whether
- *     it needs a non-empty rest ({name+}, not {name*}); every element after it is a route id, in
- *     declaration order
+ * @psalm-type CatchEntry = list{int, int, ...<int>} a catch-all edge, flattened: index 0 is the
+ *     catch-all kind ({@see Internal\SegmentType::catchTag()}: 0 {name*}, 1 {name+}, 2 {name?});
+ *     every element after it is a route id, in declaration order
  * @psalm-type CompiledRoutes = array{
  *     version: int,
  *     metadata: mixed,
@@ -74,7 +75,7 @@ final class Compiler
      * The version of the compiled structure above. Bumped whenever it changes, so entries cached by
      * an incompatible version are recompiled instead of misread.
      */
-    public const int FORMAT_VERSION = 11;
+    public const int FORMAT_VERSION = 12;
 
     /**
      * Compiles the table's definitions in declaration order, which decides between routes sharing a
@@ -146,7 +147,8 @@ final class Compiler
      * Builds the intermediate tree from the routes.
      *
      * Several routes may share a path; they are kept in declaration order and a match-time filter
-     * chooses between them. The only conflict left is mixing `{name*}` and `{name+}` on one node.
+     * chooses between them. The only conflict left is mixing catch-all kinds — `{name*}`, `{name+}`
+     * and `{name?}` — on one node.
      *
      * @param list<RouteDefinition> $routes
      *
@@ -181,7 +183,7 @@ final class Compiler
         $node = self::walk($root, array_slice($segments, offset: 0, length: -1));
         if ($node->catchType !== null && $node->catchType !== $last->type) {
             throw new InvalidRouteException(sprintf(
-                'Catch-all route "%s" conflicts with catch-all route "%s"; routes sharing a catch-all must all use either {name*} or {name+}.',
+                'Catch-all route "%s" conflicts with catch-all route "%s"; routes sharing a catch-all must all use the same kind: {name*}, {name+} or {name?}.',
                 $route->path,
                 $routes[$node->catchRoutes[0]]->path,
             ));

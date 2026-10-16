@@ -234,6 +234,65 @@ final class MatcherTest extends TestCase
         static::assertSame($expected, self::find($matcher, $path)?->params['path']);
     }
 
+    /**
+     * @return iterable<string, array{string, ?string}>
+     */
+    public static function optionalProvider(): iterable
+    {
+        yield 'no remainder' => ['/assets', null];
+        yield 'trailing slash' => ['/assets/', ''];
+        yield 'one segment' => ['/assets/app.js', 'app.js'];
+    }
+
+    #[DataProvider('optionalProvider')]
+    public function testOptionalTrailingSegment(string $path, ?string $expected): void
+    {
+        $matcher = self::matcher(static fn(): array => [new RouteDefinition('/assets/{path?}', 'assets')]);
+
+        static::assertSame($expected, self::mustMatch($matcher, $path)->params['path']);
+    }
+
+    public function testOptionalTrailingSegmentDoesNotMatchMoreThanOneSegment(): void
+    {
+        $matcher = self::matcher(static fn(): array => [new RouteDefinition('/assets/{path?}', 'assets')]);
+
+        static::assertNull(self::find($matcher, '/assets/css/app.css'));
+    }
+
+    public function testParameterTakesPrecedenceOverOptionalSegment(): void
+    {
+        $matcher = self::matcher(static fn(): array => [
+            new RouteDefinition('/files/{name}', 'param'),
+            new RouteDefinition('/files/{rest?}', 'optional'),
+        ]);
+
+        static::assertSame('param', self::find($matcher, '/files/a')?->route);
+    }
+
+    public function testOptionalSegmentIsTriedAfterParameterBacktracks(): void
+    {
+        $matcher = self::matcher(static fn(): array => [
+            new RouteDefinition('/files/{name}', 'param'),
+            new RouteDefinition('/files/{rest?}', 'optional'),
+        ]);
+
+        $match = self::mustMatch($matcher, '/files/');
+        static::assertSame('optional', $match->route);
+        static::assertSame('', $match->params['rest']);
+    }
+
+    public function testExactRouteTakesPrecedenceOverOptionalSegment(): void
+    {
+        $matcher = self::matcher(static fn(): array => [
+            new RouteDefinition('/docs', 'index'),
+            new RouteDefinition('/docs/{page?}', 'page'),
+        ]);
+
+        static::assertSame('index', self::find($matcher, '/docs')?->route);
+        static::assertSame('page', self::find($matcher, '/docs/')?->route);
+        static::assertSame('', self::find($matcher, '/docs/')?->params['page']);
+    }
+
     public function testExactRouteTakesPrecedenceOverEmptyCatchAll(): void
     {
         $matcher = self::matcher(static fn(): array => [

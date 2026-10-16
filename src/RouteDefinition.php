@@ -29,7 +29,7 @@ use function substr;
  */
 final readonly class RouteDefinition
 {
-    private const string PLACEHOLDER = '/^\{([A-Za-z_][A-Za-z0-9_]*)([*+]?)\}$/';
+    private const string PLACEHOLDER = '/^\{([A-Za-z_][A-Za-z0-9_]*)([*+?]?)\}$/';
 
     /**
      * @internal the parsed path, for the compiler
@@ -102,7 +102,7 @@ final readonly class RouteDefinition
             $match = [];
             if (preg_match(self::PLACEHOLDER, $part, $match) !== 1) {
                 throw new InvalidRouteException(sprintf(
-                    'Route path "%s" has an invalid placeholder segment "%s"; placeholders must span a whole segment, e.g. "{id}", "{path*}" or "{path+}".',
+                    'Route path "%s" has an invalid placeholder segment "%s"; placeholders must span a whole segment, e.g. "{id}", "{path*}", "{path+}" or "{path?}".',
                     $path,
                     $part,
                 ));
@@ -121,12 +121,13 @@ final readonly class RouteDefinition
             $type = match ($match[2]) {
                 '*' => SegmentType::CatchAllZero,
                 '+' => SegmentType::CatchAllOne,
+                '?' => SegmentType::Optional,
                 default => SegmentType::Param,
             };
 
             if ($type->isCatchAll() && $index !== $last) {
                 throw new InvalidRouteException(sprintf(
-                    'Catch-all parameter "%s" must be the last segment of "%s".',
+                    'Catch-all or optional parameter "%s" must be the last segment of "%s".',
                     $name,
                     $path,
                 ));
@@ -166,7 +167,8 @@ final readonly class RouteDefinition
                 continue;
             }
 
-            $parameters[] = new PathParameter($segment->value, required: $segment->type !== SegmentType::CatchAllZero);
+            $required = $segment->type !== SegmentType::CatchAllZero && $segment->type !== SegmentType::Optional;
+            $parameters[] = new PathParameter($segment->value, $required);
         }
 
         return $parameters;

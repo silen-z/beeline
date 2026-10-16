@@ -134,11 +134,16 @@ final class Routers
     }
 
     /**
-     * Translates `{name*}` / `{name+}` catch-alls into FastRoute's regex placeholders.
+     * Translates `{name*}` / `{name+}` catch-alls and `{name?}` optional segments into FastRoute's
+     * placeholders.
      */
     public static function toFastRoutePattern(string $route): string
     {
-        return (string) preg_replace(['#/\{(\w+)\*\}$#', '#\{(\w+)\+\}$#'], ['[/{$1:.*}]', '{$1:.+}'], $route);
+        return (string) preg_replace(
+            ['#/\{(\w+)\*\}$#', '#\{(\w+)\+\}$#', '#/\{(\w+)\?\}$#'],
+            ['[/{$1:.*}]', '{$1:.+}', '[/{$1}]'],
+            $route,
+        );
     }
 
     /**
@@ -171,12 +176,17 @@ final class Routers
         $collection = new RouteCollection();
         foreach (self::ordered($routes) as $index => $route) {
             $symfony = new SymfonyRoute(
-                (string) preg_replace('#\{(\w+)[*+]\}$#', replacement: '{$1}', subject: $route),
+                (string) preg_replace('#\{(\w+)[*+?]\}$#', replacement: '{$1}', subject: $route),
                 methods: ['GET'],
             );
             $m = [];
-            if (preg_match('#\{(\w+)([*+])\}$#', $route, $m) === 1) {
-                $symfony->setRequirement($m[1], $m[2] === '+' ? '.+' : '.*');
+            if (preg_match('#\{(\w+)([*+?])\}$#', $route, $m) === 1) {
+                if ($m[2] === '?') {
+                    // Symfony's segments are optional when they have a default, not via syntax.
+                    $symfony->setDefault($m[1], null);
+                } else {
+                    $symfony->setRequirement($m[1], $m[2] === '+' ? '.+' : '.*');
+                }
             }
             $collection->add('r' . $index, $symfony);
         }
@@ -197,7 +207,7 @@ final class Routers
     private static function ordered(array $routes): array
     {
         $rank = static fn(string $route): int => match (true) {
-            preg_match('#\{\w+[*+]\}$#', $route) === 1 => 2,
+            preg_match('#\{\w+[*+?]\}$#', $route) === 1 => 2,
             str_contains($route, '{') => 1,
             default => 0,
         };

@@ -7,8 +7,9 @@ namespace SilenZ\Beeline;
 /**
  * A named parameter in a route's path, in the order it appears ({@see RouteDefinition::$parameters}).
  *
- * `required` is `false` only for a zero-or-more catch-all (`{name*}`); every other parameter kind,
- * including a one-or-more catch-all (`{name+}`), must be present to match the route at all.
+ * `required` is `false` only for a zero-or-more catch-all (`{name*}`) or an optional trailing
+ * segment (`{name?}`); every other parameter kind, including a one-or-more catch-all (`{name+}`),
+ * must be present to match the route at all.
  */
 final readonly class PathParameter
 {

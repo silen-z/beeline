@@ -18,6 +18,7 @@ use Symfony\Component\Routing\Matcher\CompiledUrlMatcher;
 use function array_diff_key;
 use function array_filter;
 use function array_key_exists;
+use function ksort;
 
 /**
  * Benchmarks are only meaningful if every router does the same work, so every benchmark request
@@ -88,12 +89,29 @@ final class BenchmarkFixturesTest extends TestCase
         /** @var int $route */
         $route = $flat->route;
         static::assertSame('r' . $route, $symfony['_route']);
-        // FastRoute omits an optional catch-all that matched nothing; this router reports ''.
-        static::assertSame($fastRoute[2], array_filter($flat->params, static fn(string $v): bool => $v !== ''));
-        static::assertSame(
-            array_filter($flat->params, static fn(string $v): bool => $v !== ''),
-            array_filter(array_diff_key($symfony, ['_route' => true]), static fn(string $v): bool => $v !== ''),
-        );
+        // FastRoute omits an optional catch-all or optional segment that matched nothing; this
+        // router reports '' for the former and null for the latter.
+        /** @var array<array-key, mixed> $fastRouteParams */
+        $fastRouteParams = $fastRoute[2];
+        static::assertSame(self::present($fastRouteParams), self::present($flat->params));
+        static::assertSame(self::present($flat->params), self::present(array_diff_key($symfony, ['_route' => true])));
+    }
+
+    /**
+     * The present (non-empty, non-null) parameters, by name: param order is incidental (Symfony, for
+     * one, orders a route's defaults before its matched segments), so only the set of name => value
+     * pairs is compared.
+     *
+     * @param array<array-key, mixed> $params
+     *
+     * @return array<array-key, mixed>
+     */
+    private static function present(array $params): array
+    {
+        $present = array_filter($params, static fn(mixed $v): bool => $v !== '' && $v !== null);
+        ksort($present);
+
+        return $present;
     }
 
     /**
@@ -127,17 +145,17 @@ final class BenchmarkFixturesTest extends TestCase
         /** @var int $route */
         $route = $flat->route;
         static::assertSame('r' . $route, $symfony['_route']);
-        static::assertSame($fastRoute[2], array_filter($flat->params, static fn(string $v): bool => $v !== ''));
-        static::assertSame(
-            array_filter($flat->params, static fn(string $v): bool => $v !== ''),
-            array_filter(array_diff_key($symfony, ['_route' => true]), static fn(string $v): bool => $v !== ''),
-        );
+        /** @var array<array-key, mixed> $fastRouteParams */
+        $fastRouteParams = $fastRoute[2];
+        static::assertSame(self::present($fastRouteParams), self::present($flat->params));
+        static::assertSame(self::present($flat->params), self::present(array_diff_key($symfony, ['_route' => true])));
     }
 
     public function testCatchAllPatternTranslation(): void
     {
         static::assertSame('/assets[/{path:.*}]', Routers::toFastRoutePattern('/assets/{path*}'));
         static::assertSame('/assets/{path:.+}', Routers::toFastRoutePattern('/assets/{path+}'));
+        static::assertSame('/assets[/{path}]', Routers::toFastRoutePattern('/assets/{path?}'));
         static::assertSame('/users/{id}', Routers::toFastRoutePattern('/users/{id}'));
     }
 }

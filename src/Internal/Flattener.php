@@ -76,7 +76,9 @@ final class Flattener
             }
 
             if ($node->catchRoutes !== []) {
-                $compiled['catch'][$id] = [$node->catchType === SegmentType::CatchAllOne, ...$node->catchRoutes];
+                /** @var SegmentType $catchType */
+                $catchType = $node->catchType;
+                $compiled['catch'][$id] = [$catchType->catchTag(), ...$node->catchRoutes];
             }
 
             if ($node->routes !== []) {

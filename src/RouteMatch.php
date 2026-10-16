@@ -12,7 +12,8 @@ final readonly class RouteMatch
 {
     /**
      * @param mixed $route metadata of the matched route
-     * @param array<string, string> $params URL-decoded parameter values by name
+     * @param array<string, ?string> $params URL-decoded parameter values by name; `null` for an
+     *     absent optional trailing segment (`{name?}`)
      */
     public function __construct(
         public mixed $route,

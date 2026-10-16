@@ -71,6 +71,17 @@ final class CompilerTest extends TestCase
             ],
             'Catch-all route "/files/{b+}" conflicts with catch-all route "/files/{a*}"',
         ];
+        yield 'optional conflicts with catch-all on one node' => [
+            static fn(): array => [
+                new RouteDefinition('/files/{a*}', 'a'),
+                new RouteDefinition('/files/{b?}', 'b'),
+            ],
+            'Catch-all route "/files/{b?}" conflicts with catch-all route "/files/{a*}"',
+        ];
+        yield 'optional not last' => [
+            static fn(): array => [new RouteDefinition('/{path?}/edit', 'x')],
+            'must be the last segment',
+        ];
         yield 'object in route metadata' => [
             static fn(): array => [new RouteDefinition('/users', ['handler' => new stdClass()])],
             'Metadata of route "/users" contains a value of type stdClass',
@@ -129,7 +140,7 @@ final class CompilerTest extends TestCase
 
         static::assertSame(
             [
-                'version' => 11,
+                'version' => 12,
                 'metadata' => null,
                 // Parameterless routes are looked up by full path. A single route is stored as its
                 // id; routes sharing a path as a list in declaration order.
@@ -145,7 +156,7 @@ final class CompilerTest extends TestCase
                     1 => ['users' => 2, 'files' => 3],
                 ],
                 'param' => [2 => 4],
-                'catch' => [3 => [true, 3]],
+                'catch' => [3 => [1, 3]],
                 'routes' => [4 => [1, 6]],
                 'routeMetadata' => ['users', 'user', 'health', 'files', 'about', 'create-user', 'user-by-name'],
                 'paramNames' => [1 => ['id'], 3 => ['path'], 6 => ['name']],
@@ -164,7 +175,7 @@ final class CompilerTest extends TestCase
 
         static::assertSame(
             [
-                'version' => 11,
+                'version' => 12,
                 'metadata' => null,
                 'static' => [],
                 // Node 1 ("items") has both a {id} param edge and a catch-all, so a miss past its
@@ -177,7 +188,7 @@ final class CompilerTest extends TestCase
                 ],
                 // Node 1's param edge (to node 3) carries the same flag for its catch-all: -3 - 1 = -4.
                 'param' => [1 => -4, 2 => 4],
-                'catch' => [1 => [false, 2]],
+                'catch' => [1 => [0, 2]],
                 'routes' => [3 => 1, 4 => 0],
                 'routeMetadata' => ['archived', 'item', 'catch'],
                 'paramNames' => [0 => ['id'], 1 => ['id'], 2 => ['rest']],
@@ -196,8 +207,15 @@ final class CompilerTest extends TestCase
 
         $compiled = Compiler::compile(self::table($routes));
 
-        // Node 1 ("files") carries all three route ids after the "needs a non-empty rest" flag,
-        // flattened into the same list rather than nested as [false, [0, 1, 2]].
-        static::assertSame([false, 0, 1, 2], $compiled['catch'][1]);
+        // Node 1 ("files") carries all three route ids after the catch-all kind tag, flattened into
+        // the same list rather than nested as [0, [0, 1, 2]].
+        static::assertSame([0, 0, 1, 2], $compiled['catch'][1]);
+    }
+
+    public function testCompilesOptionalTrailingSegment(): void
+    {
+        $compiled = Compiler::compile(self::table([new RouteDefinition('/assets/{path?}', 'assets')]));
+
+        static::assertSame([2, 0], $compiled['catch'][1]);
     }
 }

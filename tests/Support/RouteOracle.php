@@ -31,7 +31,7 @@ final class RouteOracle
      * @param list<string> $routes route paths; a route's metadata is its index
      * @param null|Closure(int): bool $filter
      *
-     * @return array{route: ?int, params: array<string, string>, rejected: list<int>}
+     * @return array{route: ?int, params: array<string, ?string>, rejected: list<int>}
      */
     public static function match(array $routes, string $path, ?Closure $filter): array
     {
@@ -90,7 +90,7 @@ final class RouteOracle
      * @param list<string> $pattern
      * @param list<string> $request
      *
-     * @return null|array{key: list<int>, params: array<string, string>}
+     * @return null|array{key: list<int>, params: array<string, ?string>}
      */
     private static function matchRoute(array $pattern, array $request): ?array
     {
@@ -98,7 +98,21 @@ final class RouteOracle
         $params = [];
         foreach ($pattern as $i => $segment) {
             $placeholder = [];
-            if (preg_match('/^\{(\w+)([*+])\}$/', $segment, $placeholder) === 1) {
+            if (preg_match('/^\{(\w+)([*+?])\}$/', $segment, $placeholder) === 1) {
+                $remaining = count($request) - $i;
+
+                if ($placeholder[2] === '?') {
+                    // Unlike */+, an optional trailing segment consumes at most one segment.
+                    if ($remaining > 1) {
+                        return null;
+                    }
+
+                    $key[] = 2;
+                    $params[$placeholder[1]] = $remaining === 1 ? rawurldecode($request[$i]) : null;
+
+                    return ['key' => $key, 'params' => $params];
+                }
+
                 $rest = implode('/', array_slice($request, $i));
                 if ($placeholder[2] === '+' && $rest === '') {
                     return null;

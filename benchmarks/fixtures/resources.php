@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Builds a fixture of $count REST-like resources with 10 routes each. Requests target the middle
+ * Builds a fixture of $count REST-like resources with 11 routes each. Requests target the middle
  * resource, so neither router benefits from it being first or last.
  *
  * @return array{routes: list<string>, requests: array<string, string>}
@@ -22,6 +22,7 @@ return static function (int $count): array {
         $routes[] = $resource . '/{id}/comments/{comment}';
         $routes[] = $resource . '/search/{query}';
         $routes[] = $resource . '/files/{path+}';
+        $routes[] = $resource . '/{id}/tags/{tag?}';
     }
 
     $middle = '/resource' . intdiv($count, num2: 2);
@@ -32,6 +33,8 @@ return static function (int $count): array {
             'static' => $middle . '/new/draft',
             'param' => $middle . '/123/comments/456',
             'catch-all' => $middle . '/files/2024/report.pdf',
+            'optional-present' => $middle . '/123/tags/urgent',
+            'optional-absent' => $middle . '/123/tags',
             'not-found' => '/missing/123',
             'backtrack-hit' => $middle . '/new/edit',
             'backtrack-miss' => $middle . '/new/unknown',

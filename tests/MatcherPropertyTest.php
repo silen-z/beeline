@@ -30,7 +30,7 @@ use function substr;
  */
 final class MatcherPropertyTest extends TestCase
 {
-    private const array SEGMENTS = ['a', 'b', 'me', '{p}', '{q}', '{r*}', '{r+}'];
+    private const array SEGMENTS = ['a', 'b', 'me', '{p}', '{q}', '{r*}', '{r+}', '{r?}'];
     private const array REQUEST_SEGMENTS = ['a', 'b', 'me', 'x', '', '7', '%41'];
 
     /**
@@ -61,7 +61,7 @@ final class MatcherPropertyTest extends TestCase
 
             $matcher = new Matcher(Compiler::compile($table));
         } catch (InvalidRouteException) {
-            // Random sets may mix {r*} and {r+} on one node, which is rejected by design.
+            // Random sets may mix {r*}, {r+} and {r?} on one node, which is rejected by design.
             $this->addToAssertionCount(1);
 
             return;
@@ -84,7 +84,7 @@ final class MatcherPropertyTest extends TestCase
     }
 
     /**
-     * @param array{route: ?int, params: array<string, string>, rejected: list<int>} $expected
+     * @param array{route: ?int, params: array<string, ?string>, rejected: list<int>} $expected
      */
     private static function assertSameResult(array $expected, RouteMatch|NoMatch $actual, string $path): void
     {
@@ -139,7 +139,7 @@ final class MatcherPropertyTest extends TestCase
 
     private static function isCatchAll(string $segment): bool
     {
-        return str_ends_with($segment, '*}') || str_ends_with($segment, '+}');
+        return str_ends_with($segment, '*}') || str_ends_with($segment, '+}') || str_ends_with($segment, '?}');
     }
 
     private static function randomPath(): string

@@ -52,8 +52,8 @@ final class Fixtures
             $paths = [];
             foreach (self::get($name)['routes'] as $index => $route) {
                 $path = (string) preg_replace(
-                    ['#\{\w+[*+]\}#', '#\{\w+\}#'],
-                    ['files/app.css', (string) (100 + $index)],
+                    ['#\{\w+[*+]\}#', '#\{\w+\?\}#', '#\{\w+\}#'],
+                    ['files/app.css', (string) (100 + $index), (string) (100 + $index)],
                     $route,
                 );
                 $paths[] = $path;

@@ -39,6 +39,11 @@ final readonly class Matcher
     // valid node, route id or encoded child id (see Compiler).
     private const int NONE = -1;
 
+    // CatchEntry's leading tag: which catch-all kind a node's catch-all edge is.
+    private const int CATCH_ZERO_OR_MORE = 0;
+    private const int CATCH_ONE_OR_MORE = 1;
+    private const int CATCH_OPTIONAL = 2;
+
     /** @var array<array-key, RouteIds> full path => route id(s), for routes without parameters */
     private array $static;
 
@@ -55,8 +60,8 @@ final readonly class Matcher
     private array $param;
 
     /**
-     * @var array<int, CatchEntry> node => its catch-all edge, flattened as [needs a non-empty rest
-     *     ({name+}, not {name*}), ...route ids]
+     * @var array<int, CatchEntry> node => its catch-all edge, flattened as [catch-all kind (0
+     *     {name*}, 1 {name+}, 2 {name?}), ...route ids]
      */
     private array $catch;
 
@@ -192,7 +197,7 @@ final readonly class Matcher
         $segments = explode('/', substr($path, offset: 1));
         $count = count($segments);
 
-        /** @var array<int, string> $values parameter values by slot; slots past $paramCount are stale */
+        /** @var array<int, ?string> $values parameter values by slot; slots past $paramCount are stale */
         $values = [];
         $paramCount = 0;
         // Backtrack frames (node, segment index, next stage, param count) as parallel arrays instead
@@ -226,8 +231,8 @@ final readonly class Matcher
                     }
 
                     $catch = $catches[$node] ?? self::NONE;
-                    if ($catch !== self::NONE && !$catch[0]) {
-                        $values[$paramCount] = '';
+                    if ($catch !== self::NONE && $catch[0] !== self::CATCH_ONE_OR_MORE) {
+                        $values[$paramCount] = $catch[0] === self::CATCH_OPTIONAL ? null : '';
                         $match = $filter === null
                             ? $this->result($catch[1], $values)
                             : $this->select($catch, $values, $filter, $rejected, offset: 1);
@@ -286,9 +291,21 @@ final readonly class Matcher
 
             if ($stage === self::CATCH) {
                 $catch = $catches[$node] ?? self::NONE;
-                if ($catch !== self::NONE) {
+                if ($catch !== self::NONE && $catch[0] === self::CATCH_OPTIONAL) {
+                    // Unlike {name*}/{name+}, {name?} consumes at most one segment, so it only
+                    // applies when exactly one is left; more than one is not a match at all.
+                    if (($index + 1) === $count) {
+                        $values[$paramCount] = $segments[$index];
+                        $match = $filter === null
+                            ? $this->result($catch[1], $values)
+                            : $this->select($catch, $values, $filter, $rejected, offset: 1);
+                        if ($match !== null) {
+                            return $match;
+                        }
+                    }
+                } elseif ($catch !== self::NONE) {
                     $rest = implode('/', array_slice($segments, $index));
-                    if ($rest !== '' || !$catch[0]) {
+                    if ($rest !== '' || $catch[0] === self::CATCH_ZERO_OR_MORE) {
                         $values[$paramCount] = $rest;
                         $match = $filter === null
                             ? $this->result($catch[1], $values)
@@ -324,7 +341,7 @@ final readonly class Matcher
      *
      * @param int|non-empty-list<int>|CatchEntry $candidates a single id, a list of ids, or (with
      *     $offset) a flattened catch entry
-     * @param array<int, string> $values
+     * @param array<int, ?string> $values
      * @param callable(RouteMatch): bool $filter
      * @param list<RouteMatch> $rejected
      */
@@ -347,7 +364,6 @@ final readonly class Matcher
         }
 
         for ($i = $offset, $count = count($candidates); $i < $count; $i++) {
-            /** @var int $routeId */
             $routeId = $candidates[$i];
             $match = $this->result($routeId, $values);
             if ($filter($match)) {
@@ -361,13 +377,14 @@ final readonly class Matcher
     }
 
     /**
-     * @param array<int, string> $values
+     * @param array<int, ?string> $values
      */
     private function result(int $routeId, array $values): RouteMatch
     {
         $params = [];
         foreach ($this->paramNames[$routeId] ?? [] as $position => $name) {
-            $params[$name] = rawurldecode($values[$position]);
+            $value = $values[$position];
+            $params[$name] = $value === null ? null : rawurldecode($value);
         }
 
         return new RouteMatch($this->resolve($this->routeMetadata[$routeId]), $params);
