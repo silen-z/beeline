@@ -8,51 +8,45 @@ use ArrayObject;
 use PHPUnit\Framework\TestCase;
 use SilenZ\Beeline\MetadataRegistry;
 use SilenZ\Beeline\RouteDefinition;
-use SilenZ\Beeline\RouteTable;
+use SilenZ\Beeline\Tests\Fixtures\CallableRouteTable;
 
 final class RouteTableTest extends TestCase
 {
-    public function testCollectFillsBothOutputsFromOneCall(): void
+    public function testDefinitionsAndMetadataComeFromOneCollect(): void
     {
-        $table = new RouteTable(static function (array &$definitions, mixed &$metadata): void {
+        $table = new CallableRouteTable(static function (array &$definitions, mixed &$metadata): void {
             $definitions = [new RouteDefinition('/a', 'a')];
             $metadata = ['middleware' => ['cors']];
         });
 
-        $definitions = [];
-        $metadata = null;
-        $table->collect($definitions, $metadata);
+        $definitions = $table->definitions();
 
-        /** @var list<RouteDefinition> $definitions */
         static::assertCount(1, $definitions);
         static::assertSame('/a', $definitions[0]->path);
-        static::assertSame(['middleware' => ['cors']], $metadata);
+        static::assertSame(['middleware' => ['cors']], $table->metadata());
     }
 
-    public function testCollectRunsAgainEveryTimeItIsCalled(): void
+    public function testCollectRunsAtMostOnceNoMatterHowManyTimesDefinitionsOrMetadataAreCalled(): void
     {
-        // Unlike earlier shapes of RouteTable, this class holds no state of its own and does no
-        // memoizing — calling collect() twice runs $collect twice. Guaranteeing "once per request" is
-        // Router's job, not RouteTable's; see Router::load().
+        // Unlike earlier shapes of RouteTable, this class now memoizes both outputs itself: collect()
+        // runs once, on whichever of definitions()/metadata() is called first, never again after —
+        // regardless of how many more times either is called.
         $calls = new ArrayObject();
-        $table = new RouteTable(static function (array &$definitions) use ($calls): void {
+        $table = new CallableRouteTable(static function (array &$definitions) use ($calls): void {
             $calls->append(true);
             $definitions = [];
         });
 
-        $definitions = [];
-        $metadata = null;
-        $table->collect($definitions, $metadata);
+        $table->definitions();
+        $table->metadata();
+        $table->definitions();
 
-        /** @var list<RouteDefinition> $definitions */
-        $table->collect($definitions, $metadata);
-
-        static::assertCount(2, $calls);
+        static::assertCount(1, $calls);
     }
 
-    public function testDefinitionsIsAConvenienceThatRunsCollectInFull(): void
+    public function testDefinitionsReturnsWhatCollectProduced(): void
     {
-        $table = new RouteTable(static function (array &$definitions): void {
+        $table = new CallableRouteTable(static function (array &$definitions): void {
             $definitions = [new RouteDefinition('/a', 'a'), new RouteDefinition('/b', 'b')];
         });
 
@@ -63,9 +57,9 @@ final class RouteTableTest extends TestCase
         static::assertSame('/b', $definitions[1]->path);
     }
 
-    public function testMetadataIsAConvenienceThatRunsCollectInFull(): void
+    public function testMetadataReturnsWhatCollectProduced(): void
     {
-        $table = new RouteTable(static function (array &$definitions, mixed &$metadata): void {
+        $table = new CallableRouteTable(static function (array &$definitions, mixed &$metadata): void {
             $metadata = ['middleware' => ['cors']];
         });
 
@@ -74,7 +68,7 @@ final class RouteTableTest extends TestCase
 
     public function testMetadataDefaultsToNullWhenCollectNeverAssignsIt(): void
     {
-        $table = new RouteTable(static function (): void {
+        $table = new CallableRouteTable(static function (): void {
             // Deliberately never assigns $metadata — this is still a valid collect, and the
             // default `mixed &$metadata = null` the caller passed in stays untouched.
         });
@@ -85,14 +79,14 @@ final class RouteTableTest extends TestCase
 
     public function testCacheKeyIsReturnedAsGiven(): void
     {
-        $table = new RouteTable(static function (): void {}, 'routes-v1');
+        $table = new CallableRouteTable(static function (): void {}, 'routes-v1');
 
         static::assertSame('routes-v1', $table->cacheKey());
     }
 
     public function testCacheKeyDefaultsToNull(): void
     {
-        $table = new RouteTable(static function (): void {});
+        $table = new CallableRouteTable(static function (): void {});
 
         static::assertNull($table->cacheKey());
     }
@@ -101,7 +95,7 @@ final class RouteTableTest extends TestCase
     {
         $registry = new MetadataRegistry();
         $calls = new ArrayObject();
-        $table = new RouteTable(static function () use ($calls): void {
+        $table = new CallableRouteTable(static function () use ($calls): void {
             $calls->append(true);
         }, registry: $registry);
 
@@ -112,7 +106,7 @@ final class RouteTableTest extends TestCase
 
     public function testRegistryDefaultsToNull(): void
     {
-        $table = new RouteTable(static function (): void {});
+        $table = new CallableRouteTable(static function (): void {});
 
         static::assertNull($table->registry());
     }

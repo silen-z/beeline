@@ -11,7 +11,7 @@ use SilenZ\Beeline\Compiler;
 use SilenZ\Beeline\Matcher;
 use SilenZ\Beeline\RouteDefinition;
 use SilenZ\Beeline\RouteMatch;
-use SilenZ\Beeline\RouteTable;
+use SilenZ\Beeline\Tests\Fixtures\CallableRouteTable;
 
 use function sprintf;
 
@@ -22,7 +22,7 @@ final class MatcherTest extends TestCase
      */
     private static function matcher(Closure $define): Matcher
     {
-        $table = new RouteTable(static function (array &$definitions, mixed &$metadata) use ($define): void {
+        $table = new CallableRouteTable(static function (array &$definitions, mixed &$metadata) use ($define): void {
             $definitions = $define();
         });
 

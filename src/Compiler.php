@@ -88,14 +88,14 @@ final class Compiler
      */
     public static function compile(RouteTable $table): array
     {
-        $definitions = [];
-        $metadata = null;
-        $table->collect($definitions, $metadata);
+        $metadata = $table->metadata();
 
         $routes = [];
-        // Checked anyway: $definitions' type is only documented, and $collect may produce anything.
-        /** @var iterable<mixed> $definitions */
-        foreach ($definitions as $route) {
+        // Checked anyway: the declared definitions' type is only documented, and collect() may
+        // produce anything.
+        /** @var iterable<mixed> $declared */
+        $declared = $table->definitions();
+        foreach ($declared as $route) {
             if (!$route instanceof RouteDefinition) {
                 throw new InvalidRouteException(sprintf(
                     'Routes must be given as %s instances, got %s.',

@@ -12,6 +12,7 @@ use SilenZ\Beeline\Exception\InvalidRouteException;
 use SilenZ\Beeline\Matcher;
 use SilenZ\Beeline\RouteDefinition;
 use SilenZ\Beeline\RouteTable;
+use SilenZ\Beeline\Tests\Fixtures\CallableRouteTable;
 use stdClass;
 
 use function preg_quote;
@@ -31,7 +32,7 @@ final class CompilerTest extends TestCase
             $m = $metadata;
         };
 
-        return new RouteTable($collect);
+        return new CallableRouteTable($collect);
     }
 
     /**

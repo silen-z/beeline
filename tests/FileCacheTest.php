@@ -12,6 +12,7 @@ use SilenZ\Beeline\RouteDefinition;
 use SilenZ\Beeline\RouteMatch;
 use SilenZ\Beeline\Router;
 use SilenZ\Beeline\RouteTable;
+use SilenZ\Beeline\Tests\Fixtures\CallableRouteTable;
 use SilenZ\Beeline\Tests\Fixtures\Method;
 
 use function basename;
@@ -39,7 +40,7 @@ final class FileCacheTest extends TestCase
             $m = $metadata;
         };
 
-        return new RouteTable($collect);
+        return new CallableRouteTable($collect);
     }
 
     private string $directory;
@@ -144,12 +145,12 @@ final class FileCacheTest extends TestCase
     public function testRouterUsesTheFileCache(): void
     {
         $cache = new FileCache($this->directory);
-        $first = new RouteTable(static function (array &$d, mixed &$m): void {
+        $first = new CallableRouteTable(static function (array &$d, mixed &$m): void {
             $d = [new RouteDefinition('/a', 'a')];
         }, 'app');
         new Router($first, $cache)->match('/a');
 
-        $router = new Router(new RouteTable(static function (): never {
+        $router = new Router(new CallableRouteTable(static function (): never {
             throw new LogicException('should not compile');
         }, 'app'), $cache);
 

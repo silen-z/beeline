@@ -17,13 +17,13 @@ use SilenZ\Beeline\Cache\RouteCache;
  * `null` (e.g. {@see Cache\FileCache} uses one shared file); only no `$cache` at all compiles on every
  * request instead.
  *
- * A table with a {@see MetadataRegistry} ({@see RouteTable::registry()}) is the exception:
- * {@see RouteTable::collect()} still runs every request regardless of the compiled cache, since
- * the registry — never itself cached — needs declaring to repopulate it. A table without one
- * (e.g. one built from {@see Http\LazyRoutes}) has nothing to repopulate, so it keeps the cache-gated
- * behavior above exactly. Either way, this class calls {@see RouteTable::collect()} at most once per
- * request — {@see RouteTable} itself no longer guards against being declared twice, so that guarantee
- * now lives here instead.
+ * A table with a {@see MetadataRegistry} ({@see RouteTable::registry()}) is the exception: its routes
+ * still get declared regardless of the compiled cache, since the registry — never itself cached —
+ * needs declaring to repopulate it. A table without one (e.g. one built from {@see Http\LazyRoutes})
+ * has nothing to repopulate, so it keeps the cache-gated behavior above exactly. Either way, declaring
+ * only ever happens once per `$routes` instance: {@see RouteTable} itself memoizes it (see
+ * {@see RouteTable::metadata()}), so a fresh instance — not this same `Router` reused — is what a
+ * long-running process needs for a fresh declare on its next request.
  *
  * @psalm-import-type CompiledRoutes from Compiler
  */
@@ -121,9 +121,6 @@ final class Router
             return;
         }
 
-        /** @var array<int, RouteDefinition> $definitions */
-        $definitions = [];
-        $metadata = null;
-        $this->routes->collect($definitions, $metadata);
+        $this->routes->metadata();
     }
 }

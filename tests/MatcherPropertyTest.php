@@ -12,7 +12,7 @@ use SilenZ\Beeline\Matcher;
 use SilenZ\Beeline\NoMatch;
 use SilenZ\Beeline\RouteDefinition;
 use SilenZ\Beeline\RouteMatch;
-use SilenZ\Beeline\RouteTable;
+use SilenZ\Beeline\Tests\Fixtures\CallableRouteTable;
 use SilenZ\Beeline\Tests\Support\RouteOracle;
 
 use function array_map;
@@ -55,7 +55,7 @@ final class MatcherPropertyTest extends TestCase
                 $set[] = new RouteDefinition($path, $index);
             }
 
-            $table = new RouteTable(static function (array &$definitions, mixed &$metadata) use ($set): void {
+            $table = new CallableRouteTable(static function (array &$definitions, mixed &$metadata) use ($set): void {
                 $definitions = $set;
             });
 

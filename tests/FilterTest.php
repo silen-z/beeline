@@ -11,7 +11,7 @@ use SilenZ\Beeline\Matcher;
 use SilenZ\Beeline\NoMatch;
 use SilenZ\Beeline\RouteDefinition;
 use SilenZ\Beeline\RouteMatch;
-use SilenZ\Beeline\RouteTable;
+use SilenZ\Beeline\Tests\Fixtures\CallableRouteTable;
 
 use function array_key_exists;
 use function array_map;
@@ -30,7 +30,7 @@ final class FilterTest extends TestCase
             $set[] = new RouteDefinition($path, $metadata);
         }
 
-        $table = new RouteTable(static function (array &$definitions, mixed &$metadata) use ($set): void {
+        $table = new CallableRouteTable(static function (array &$definitions, mixed &$metadata) use ($set): void {
             $definitions = $set;
         });
 

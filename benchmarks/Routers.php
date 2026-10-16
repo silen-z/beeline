@@ -68,7 +68,7 @@ final class Routers
      */
     private static function table(array $definitions): RouteTable
     {
-        return new RouteTable(static function (array &$d, mixed &$metadata) use ($definitions): void {
+        return new CallableRouteTable(static function (array &$d, mixed &$metadata) use ($definitions): void {
             $d = $definitions;
         });
     }
@@ -110,7 +110,7 @@ final class Routers
      */
     public static function cachedFlat(string $fixture): Router
     {
-        return new Router(new RouteTable(static function (): never {
+        return new Router(new CallableRouteTable(static function (): never {
             throw new LogicException('Cache entry missing.');
         }, $fixture), new FileCache(self::CACHE_DIRECTORY));
     }

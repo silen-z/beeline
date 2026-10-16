@@ -14,6 +14,7 @@ use SilenZ\Beeline\RouteDefinition;
 use SilenZ\Beeline\RouteMatch;
 use SilenZ\Beeline\Router;
 use SilenZ\Beeline\RouteTable;
+use SilenZ\Beeline\Tests\Fixtures\CallableRouteTable;
 
 final class RouterTest extends TestCase
 {
@@ -43,7 +44,7 @@ final class RouterTest extends TestCase
      */
     private static function table(callable $definitions, ?string $cacheKey = null): RouteTable
     {
-        return new RouteTable(static function (array &$d, mixed &$m) use ($definitions): void {
+        return new CallableRouteTable(static function (array &$d, mixed &$m) use ($definitions): void {
             $produced = $definitions();
             $d = is_array($produced) ? $produced : iterator_to_array($produced, preserve_keys: false);
         }, $cacheKey);
@@ -62,7 +63,7 @@ final class RouterTest extends TestCase
             $m = $metadata;
         };
 
-        return new RouteTable($collect);
+        return new CallableRouteTable($collect);
     }
 
     private static function route(RouteMatch|NoMatch $result): mixed
@@ -231,12 +232,11 @@ final class RouterTest extends TestCase
         static::assertSame('/users/{id}', $definitions[1]->path);
     }
 
-    public function testDefinitionsRunsTheCollectCallableEveryTime(): void
+    public function testDefinitionsRunsTheCollectCallableAtMostOnce(): void
     {
-        // Unlike earlier shapes of RouteTable, it no longer memoizes on its own: calling a
-        // convenience getter twice declares twice. Only Router guarantees "once per request", and
-        // only for its own path (match()/metadata()/routes()), not for definitions()/metadata() read
-        // directly off table() — see RouteTable's class docs.
+        // RouteTable itself memoizes definitions()/metadata() now — see its class docs. router->table()
+        // keeps returning the very same RouteTable instance, so calling definitions() on it twice still
+        // only declares once.
         $calls = new ArrayObject();
         $router = new Router(self::table(static function () use ($calls): array {
             $calls->append(true);
@@ -247,7 +247,7 @@ final class RouterTest extends TestCase
         $router->table()->definitions();
         $router->table()->definitions();
 
-        static::assertCount(2, $calls);
+        static::assertCount(1, $calls);
     }
 
     public function testDefinitionsIgnoresTheCache(): void
@@ -276,7 +276,7 @@ final class RouterTest extends TestCase
     {
         $cache = self::memoryCache();
         $calls = new ArrayObject();
-        $table = static fn(string $middleware): RouteTable => new RouteTable(static function (
+        $table = static fn(string $middleware): RouteTable => new CallableRouteTable(static function (
             array &$d,
             mixed &$m,
         ) use ($calls, $middleware): void {
@@ -320,7 +320,7 @@ final class RouterTest extends TestCase
         $cache = self::memoryCache();
         $calls = new ArrayObject();
         $registry = new MetadataRegistry();
-        $table = static fn(): RouteTable => new RouteTable(
+        $table = static fn(): RouteTable => new CallableRouteTable(
             static function (array &$d, mixed &$m) use ($calls, $registry): void {
                 $calls->append(true);
                 $d = [new RouteDefinition('/a', $registry->register('a'))];
